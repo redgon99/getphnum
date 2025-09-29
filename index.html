@@ -125,14 +125,37 @@
         function initApp() {
             console.log('🚀 앱 초기화 시작');
             
-            // URL 설정
+            // URL 설정 - GitHub Pages 호환
             const protocol = window.location.protocol;
             const hostname = window.location.hostname;
             const port = window.location.port;
             const portString = port ? `:${port}` : '';
             
-            mobileUrl = `${protocol}//${hostname}${portString}/mobile.html`;
+            // 현재 경로에서 기본 경로 추출
+            const currentPath = window.location.pathname;
+            let basePath = '';
+            
+            // GitHub Pages인 경우 경로 처리
+            if (hostname.includes('github.io')) {
+                // /getphnum/ 같은 서브디렉토리에서 실행 중인 경우
+                const pathParts = currentPath.split('/').filter(part => part);
+                if (pathParts.length > 0) {
+                    basePath = '/' + pathParts[0] + '/';
+                } else {
+                    basePath = '/';
+                }
+            } else if (portString) {
+                // 로컬 개발 환경
+                basePath = '/';
+            } else {
+                // 일반 웹서버
+                basePath = '/';
+            }
+            
+            mobileUrl = `${protocol}//${hostname}${portString}${basePath}mobile.html`;
             console.log('📱 모바일 URL 설정:', mobileUrl);
+            console.log('현재 경로:', currentPath);
+            console.log('기본 경로:', basePath);
             
             // UI 요소 업데이트
             updateUI();
