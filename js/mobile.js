@@ -48,6 +48,9 @@ class MobilePhoneForm {
             e.preventDefault();
             this.handleSubmit();
         });
+        
+        // 모달 이벤트 리스너 설정
+        this.setupModalEventListeners();
 
         // 입력 필드 포커스 시 에러 메시지 숨기기
         [this.nameInput, this.phoneInput].forEach(input => {
@@ -61,6 +64,62 @@ class MobilePhoneForm {
         this.phoneInput.addEventListener('input', (e) => {
             this.formatPhoneInput(e.target);
         });
+    }
+    
+    // 모달 이벤트 리스너 설정
+    setupModalEventListeners() {
+        const modal = document.getElementById('confirmModal');
+        const closeBtn = modal.querySelector('.modal-close');
+        const cancelBtn = modal.querySelector('.btn-cancel');
+        const confirmBtn = modal.querySelector('.btn-confirm');
+        
+        console.log('🔧 모달 이벤트 리스너 설정 중...');
+        console.log('모달 요소:', modal);
+        console.log('닫기 버튼:', closeBtn);
+        console.log('취소 버튼:', cancelBtn);
+        console.log('확인 버튼:', confirmBtn);
+        
+        // 닫기 버튼
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => {
+                console.log('❌ 닫기 버튼 클릭');
+                this.closeConfirmModal();
+            });
+        }
+        
+        // 취소 버튼
+        if (cancelBtn) {
+            cancelBtn.addEventListener('click', () => {
+                console.log('❌ 취소 버튼 클릭');
+                this.closeConfirmModal();
+            });
+        }
+        
+        // 확인 버튼
+        if (confirmBtn) {
+            confirmBtn.addEventListener('click', () => {
+                console.log('✅ 확인 버튼 클릭');
+                this.confirmSubmit();
+            });
+        }
+        
+        // 배경 클릭으로 모달 닫기
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                console.log('🖱️ 배경 클릭으로 모달 닫기');
+                this.closeConfirmModal();
+            }
+        });
+        
+        // ESC 키로 모달 닫기
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && modal.style.display === 'flex') {
+                console.log('⌨️ ESC 키로 모달 닫기');
+                this.closeConfirmModal();
+            }
+        });
+        
+        console.log('✅ 모달 이벤트 리스너 설정 완료');
 
         // 엔터키로 폼 제출
         this.form.addEventListener('keydown', (e) => {
@@ -160,6 +219,62 @@ class MobilePhoneForm {
         }
 
         console.log('폼 유효성 검사 통과');
+        
+        // 확인 모달 표시
+        this.showConfirmModal();
+    }
+    
+    // 확인 모달 표시
+    showConfirmModal() {
+        console.log('📋 확인 모달 표시 시작');
+        const name = this.nameInput.value.trim();
+        const phone = this.phoneInput.value;
+        
+        console.log('입력된 데이터:', { name, phone });
+        
+        // 모달에 데이터 표시
+        const nameElement = document.getElementById('confirmName');
+        const phoneElement = document.getElementById('confirmPhone');
+        
+        if (nameElement && phoneElement) {
+            nameElement.textContent = name;
+            phoneElement.textContent = phone;
+            console.log('모달에 데이터 표시 완료');
+        } else {
+            console.error('모달 데이터 요소를 찾을 수 없습니다');
+        }
+        
+        // 모달 표시
+        const modal = document.getElementById('confirmModal');
+        if (modal) {
+            modal.style.display = 'flex';
+            console.log('모달 표시 완료');
+        } else {
+            console.error('모달 요소를 찾을 수 없습니다');
+        }
+        
+        // 배경 클릭으로 닫기 방지
+        document.body.style.overflow = 'hidden';
+    }
+    
+    // 확인 모달 닫기
+    closeConfirmModal() {
+        console.log('❌ 확인 모달 닫기');
+        const modal = document.getElementById('confirmModal');
+        if (modal) {
+            modal.style.display = 'none';
+            console.log('모달 숨김 완료');
+        }
+        document.body.style.overflow = 'auto';
+    }
+    
+    // 실제 데이터 전송 처리
+    async confirmSubmit() {
+        console.log('확인 모달에서 전송 확인');
+        
+        // 모달 닫기
+        this.closeConfirmModal();
+        
         this.setLoading(true);
         this.hideMessages();
 
@@ -574,5 +689,19 @@ window.testSubmit = function() {
         window.phoneForm.handleSubmit();
     } else {
         console.error('phoneForm 객체를 찾을 수 없습니다');
+    }
+};
+
+// 전역 모달 함수들 (HTML onclick 대신 JavaScript 이벤트 리스너 사용)
+// 이 함수들은 더 이상 필요하지 않지만 호환성을 위해 유지
+window.closeConfirmModal = function() {
+    if (window.phoneForm) {
+        window.phoneForm.closeConfirmModal();
+    }
+};
+
+window.confirmSubmit = function() {
+    if (window.phoneForm) {
+        window.phoneForm.confirmSubmit();
     }
 };

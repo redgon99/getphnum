@@ -26,23 +26,24 @@
                 <button id="exportBtn" class="btn btn-primary" title="클릭: Excel CSV 내보내기 | Shift+클릭: 다른 형식 선택">데이터 내보내기</button>
                 <button id="clearBtn" class="btn btn-danger">데이터 초기화</button>
                 <button id="refreshBtn" class="btn btn-secondary" onclick="refreshAdminData()">데이터 새로고침</button>
-                <button id="debugBtn" class="btn btn-secondary" onclick="showDebugInfo()">디버그 정보</button>
             </div>
             
             <div class="table-container">
-                <table id="dataTable">
-                    <thead>
-                        <tr>
-                            <th>번호</th>
-                            <th>이름</th>
-                            <th>전화번호</th>
-                            <th>수집시간</th>
-                        </tr>
-                    </thead>
-                    <tbody id="dataTableBody">
-                        <!-- 데이터가 여기에 동적으로 추가됩니다 -->
-                    </tbody>
-                </table>
+                <div class="table-scroll">
+                    <table id="dataTable">
+                        <thead>
+                            <tr>
+                                <th>번호</th>
+                                <th>이름</th>
+                                <th>전화번호</th>
+                                <th>수집시간</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dataTableBody">
+                            <!-- 데이터가 여기에 동적으로 추가됩니다 -->
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
         
@@ -52,7 +53,7 @@
             <div class="qr-container">
                 <div id="qrDisplay" style="text-align: center; padding: 20px;">
                     <!-- QR코드가 여기에 표시됩니다 -->
-                    <img id="qrImage" src="" alt="QR Code" style="max-width: 200px; height: auto; display: block;">
+                    <img id="qrImage" src="" alt="QR Code" style="display: block;">
                     
                     <!-- 로딩 표시 -->
                     <div id="qrLoading" style="display: none; padding: 20px;">
@@ -194,9 +195,16 @@
             
             // 다중 QR API 시도
             const qrApis = [
-                `https://chart.googleapis.com/chart?chs=220x220&cht=qr&chl=${encodeURIComponent(mobileUrl)}`,
-                `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(mobileUrl)}`,
-                `https://qr-code-styling.com/qr_code?data=${encodeURIComponent(mobileUrl)}&size=220`
+                `https://chart.googleapis.com/chart?chs=300x300&cht=qr&chl=${encodeURIComponent(mobileUrl)}`,
+                `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(mobileUrl)}`,
+                `https://qr-code-styling.com/qr_code?data=${encodeURIComponent(mobileUrl)}&size=300`
+            ];
+            
+            // 확장용 QR API (더 큰 크기)
+            const qrApisExpanded = [
+                `https://chart.googleapis.com/chart?chs=400x400&cht=qr&chl=${encodeURIComponent(mobileUrl)}`,
+                `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(mobileUrl)}`,
+                `https://qr-code-styling.com/qr_code?data=${encodeURIComponent(mobileUrl)}&size=400`
             ];
             
             let currentApiIndex = 0;
@@ -431,51 +439,6 @@ IP 확인 방법:
         `;
         document.head.appendChild(style);
         
-        // 디버그 정보 표시 함수
-        window.showDebugInfo = async function() {
-            const phoneManager = window.phoneManager;
-            let debugInfo = `=== 디버그 정보 ===\n\n`;
-            
-            if (phoneManager) {
-                debugInfo += `관리자 모드: ${phoneManager.useSupabase ? 'Supabase' : 'localStorage'}\n`;
-                debugInfo += `현재 데이터 수: ${phoneManager.data ? phoneManager.data.length : 0}개\n\n`;
-                
-                if (phoneManager.useSupabase && window.supabaseManager) {
-                    try {
-                        const testResult = await window.supabaseManager.testConnection();
-                        debugInfo += `Supabase 연결: ${testResult.success ? '성공' : '실패'}\n`;
-                        if (!testResult.success) {
-                            debugInfo += `연결 오류: ${testResult.message}\n`;
-                        }
-                        
-                        const stats = await window.supabaseManager.getStats();
-                        debugInfo += `DB 통계: 총 ${stats.total}개, 오늘 ${stats.today}개\n\n`;
-                    } catch (error) {
-                        debugInfo += `Supabase 오류: ${error.message}\n\n`;
-                    }
-                }
-                
-                if (phoneManager.data && phoneManager.data.length > 0) {
-                    debugInfo += `최근 데이터 3개:\n`;
-                    phoneManager.data.slice(0, 3).forEach((item, index) => {
-                        debugInfo += `${index + 1}. ${item.name} - ${item.phone} (${new Date(item.created_at || item.timestamp).toLocaleString('ko-KR')})\n`;
-                    });
-                }
-            } else {
-                debugInfo += `❌ phoneManager가 초기화되지 않았습니다.\n`;
-            }
-            
-            const storedData = JSON.parse(localStorage.getItem('phoneData')) || [];
-            debugInfo += `\nlocalStorage 데이터: ${storedData.length}개\n`;
-            
-            debugInfo += `\n=== 해결 방법 ===\n`;
-            debugInfo += `1. "데이터 새로고침" 버튼 클릭\n`;
-            debugInfo += `2. 페이지 새로고침 (F5)\n`;
-            debugInfo += `3. 콘솔에서 refreshAdminData() 실행\n`;
-            debugInfo += `4. 콘솔에서 testSupabaseDelete() 실행 (삭제 테스트)\n`;
-            
-            alert(debugInfo);
-        };
         
         // 전역 새로고침 함수 (백업)
         if (typeof refreshAdminData === 'undefined') {

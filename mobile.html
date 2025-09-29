@@ -48,6 +48,33 @@
         </div>
     </div>
     
+    <!-- 전송 확인 모달 -->
+    <div id="confirmModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>📋 전송 확인</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>입력하신 정보가 올바른지 확인해주세요.</p>
+                <div class="confirm-info">
+                    <div class="info-item">
+                        <span class="label">이름:</span>
+                        <span id="confirmName" class="value"></span>
+                    </div>
+                    <div class="info-item">
+                        <span class="label">전화번호:</span>
+                        <span id="confirmPhone" class="value"></span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-cancel">취소</button>
+                <button class="btn-confirm">전송하기</button>
+            </div>
+        </div>
+    </div>
+    
     <!-- Supabase 클라이언트 라이브러리 -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.0/dist/umd/supabase.min.js"></script>
     <script src="js/supabase-config.js"></script>

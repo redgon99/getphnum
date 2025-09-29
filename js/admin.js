@@ -118,8 +118,8 @@ class PhoneDataManager {
 
         // 새 QR코드 생성
         QRCode.toCanvas(qrContainer, mobileUrl, {
-            width: 200,
-            height: 200,
+            width: 250,
+            height: 250,
             margin: 2,
             color: {
                 dark: '#000000',
@@ -668,6 +668,9 @@ class PhoneDataManager {
             }
         });
 
+        // QR코드 클릭 이벤트 (레이아웃 토글)
+        this.setupQrClickToggle();
+
         // 키보드 단축키
         document.addEventListener('keydown', (e) => {
             if (e.ctrlKey || e.metaKey) {
@@ -683,6 +686,96 @@ class PhoneDataManager {
                 }
             }
         });
+    }
+
+    // QR코드 클릭 토글 설정
+    setupQrClickToggle() {
+        const qrSection = document.querySelector('.qr-section');
+        const qrContainer = document.querySelector('.qr-container');
+        const container = document.querySelector('.container');
+        
+        if (qrSection && qrContainer && container) {
+            // QR 섹션 클릭 이벤트
+            qrSection.addEventListener('click', (e) => {
+                // QR 컨테이너나 그 자식 요소를 클릭한 경우에만 토글
+                if (e.target.closest('.qr-container') || e.target === qrSection) {
+                    this.toggleQrLayout(container);
+                }
+            });
+            
+            // ESC 키로 레이아웃 복원
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && container.classList.contains('qr-expanded')) {
+                    this.toggleQrLayout(container);
+                }
+            });
+        }
+    }
+
+    // QR 레이아웃 토글
+    toggleQrLayout(container) {
+        const isExpanded = container.classList.contains('qr-expanded');
+        
+        if (isExpanded) {
+            // 축소 (원래 상태)
+            container.classList.remove('qr-expanded');
+            console.log('📱 QR 레이아웃 축소');
+            // QR코드 크기 축소
+            this.adjustQrSize(false);
+        } else {
+            // 확장
+            container.classList.add('qr-expanded');
+            console.log('📱 QR 레이아웃 확장');
+            // QR코드 크기 확대
+            this.adjustQrSize(true);
+        }
+    }
+
+    // QR코드 크기 조정
+    adjustQrSize(isExpanded) {
+        const qrImage = document.getElementById('qrImage');
+        const qrCodeElement = document.getElementById('qrcode');
+        
+        if (qrImage && qrImage.src) {
+            // 현재 URL에서 크기 파라미터 변경
+            let newSrc = qrImage.src;
+            if (isExpanded) {
+                // 확장 시 더 큰 크기로 변경
+                newSrc = newSrc.replace(/chs=\d+x\d+/, 'chs=400x400');
+                newSrc = newSrc.replace(/size=\d+x\d+/, 'size=400x400');
+                newSrc = newSrc.replace(/size=\d+/, 'size=400');
+            } else {
+                // 축소 시 원래 크기로 변경
+                newSrc = newSrc.replace(/chs=\d+x\d+/, 'chs=300x300');
+                newSrc = newSrc.replace(/size=\d+x\d+/, 'size=300x300');
+                newSrc = newSrc.replace(/size=\d+/, 'size=300');
+            }
+            
+            if (newSrc !== qrImage.src) {
+                qrImage.src = newSrc;
+                console.log('🔄 QR코드 이미지 크기 조정:', isExpanded ? '확대' : '축소');
+            }
+        }
+        
+        // QRCode.js로 생성된 QR코드도 크기 조정
+        const qrDisplay = document.getElementById('qrDisplay');
+        if (qrDisplay) {
+            const canvas = qrDisplay.querySelector('canvas');
+            if (canvas) {
+                if (isExpanded) {
+                    canvas.style.width = '400px';
+                    canvas.style.height = '400px';
+                    canvas.width = 400;
+                    canvas.height = 400;
+                } else {
+                    canvas.style.width = '250px';
+                    canvas.style.height = '250px';
+                    canvas.width = 250;
+                    canvas.height = 250;
+                }
+                console.log('🔄 QRCode.js 캔버스 크기 조정:', isExpanded ? '확대' : '축소');
+            }
+        }
     }
 
     // 실시간 동기화 설정
@@ -704,8 +797,10 @@ class PhoneDataManager {
                 this.renderTable();
                 console.log('✅ 새로고침 완료, 현재 데이터 수:', this.data.length);
                 
-                // 성공 알림
-                this.showNewDataNotification([]);
+                // 새로고침 완료 알림 (새 데이터가 있을 때만)
+                if (this.data.length > 0) {
+                    this.showRefreshNotification();
+                }
             } catch (error) {
                 console.error('❌ 새로고침 실패:', error);
                 alert('데이터 새로고침에 실패했습니다: ' + error.message);
@@ -865,6 +960,50 @@ class PhoneDataManager {
             `;
             document.head.appendChild(style);
         }
+    }
+    
+    // 새로고침 완료 알림 표시
+    showRefreshNotification() {
+        // 기존 알림 제거
+        const existingNotif = document.getElementById('refreshNotification');
+        if (existingNotif) {
+            existingNotif.remove();
+        }
+        
+        // 새 알림 생성
+        const notification = document.createElement('div');
+        notification.id = 'refreshNotification';
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #3b82f6;
+            color: white;
+            padding: 15px 25px;
+            border-radius: 10px;
+            font-weight: 600;
+            z-index: 1000;
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
+            animation: slideDown 0.3s ease;
+        `;
+        
+        notification.innerHTML = `
+            🔄 데이터 새로고침 완료!<br>
+            <small style="font-size: 12px; opacity: 0.9;">
+                총 ${this.data.length}개의 데이터를 불러왔습니다
+            </small>
+        `;
+        
+        document.body.appendChild(notification);
+        
+        // 3초 후 제거
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.style.animation = 'slideUp 0.3s ease';
+                setTimeout(() => notification.remove(), 300);
+            }
+        }, 3000);
     }
 
     // 모바일 앱에서 데이터 수신 (URL 파라미터 또는 postMessage)

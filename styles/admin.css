@@ -31,6 +31,12 @@ body {
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    transition: flex 0.3s ease;
+}
+
+/* QR코드 클릭 시 레이아웃 변경 */
+.container.qr-expanded .data-section {
+    flex: 0 0 40%;
 }
 
 .data-section h1 {
@@ -79,13 +85,18 @@ body {
     display: flex;
     flex-direction: column;
     min-height: 0;
+    max-height: calc(100vh - 300px); /* 최대 높이 제한 */
+}
+
+.table-scroll {
+    overflow-y: auto;
+    flex: 1;
+    max-height: calc(100vh - 400px);
 }
 
 table {
     width: 100%;
     border-collapse: collapse;
-    flex: 1;
-    overflow-y: auto;
 }
 
 table thead {
@@ -103,7 +114,15 @@ th, td {
     padding: 15px;
     text-align: left;
     border-bottom: 1px solid #e2e8f0;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
 }
+
+/* 테이블 컬럼 너비 최적화 */
+th:nth-child(1), td:nth-child(1) { width: 10%; } /* 번호 */
+th:nth-child(2), td:nth-child(2) { width: 25%; } /* 이름 */
+th:nth-child(3), td:nth-child(3) { width: 30%; } /* 전화번호 */
+th:nth-child(4), td:nth-child(4) { width: 35%; } /* 수집시간 */
 
 th {
     background: #f1f5f9;
@@ -136,20 +155,8 @@ tbody tr:last-child td {
     border: 1px solid #e2e8f0;
     flex-wrap: wrap;
     align-items: center;
+    justify-content: center;
     flex-shrink: 0;
-}
-
-.actions::before {
-    content: "📊 데이터 관리";
-    font-weight: 600;
-    color: #475569;
-    font-size: 0.9rem;
-    flex: 1;
-}
-
-/* 버튼들을 컨테이너로 감싸기 */
-.actions > button:first-of-type {
-    margin-left: auto;
 }
 
 .btn {
@@ -193,7 +200,7 @@ tbody tr:last-child td {
 
 /* 우측 QR 섹션 */
 .qr-section {
-    flex: 0 0 400px;
+    flex: 0 0 500px;
     padding: 30px;
     background: white;
     display: flex;
@@ -204,6 +211,13 @@ tbody tr:last-child td {
     overflow-y: auto;
     position: sticky;
     top: 0;
+    transition: flex 0.3s ease;
+    cursor: pointer;
+}
+
+/* QR코드 클릭 시 레이아웃 변경 */
+.container.qr-expanded .qr-section {
+    flex: 0 0 60%;
 }
 
 .qr-section h2 {
@@ -215,15 +229,46 @@ tbody tr:last-child td {
 
 .qr-container {
     background: white;
-    padding: 20px;
+    padding: 30px;
     border-radius: 16px;
     box-shadow: 0 4px 20px rgba(0,0,0,0.1);
     margin-bottom: 20px;
+    min-width: 300px;
+    transition: all 0.3s ease;
+    cursor: pointer;
 }
 
-#qrcode {
+.qr-container:hover {
+    transform: scale(1.02);
+    box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+}
+
+/* QR코드 확장 상태 표시 */
+.container.qr-expanded .qr-container {
+    border: 3px solid #3b82f6;
+    box-shadow: 0 8px 30px rgba(59, 130, 246, 0.3);
+    padding: 40px;
+    min-width: 500px;
+}
+
+.container.qr-expanded .qr-section h2::after {
+    content: " (확장됨)";
+    color: #3b82f6;
+    font-size: 0.8em;
+}
+
+#qrImage {
     display: block;
     margin: 0 auto;
+    width: 250px;
+    height: 250px;
+    transition: all 0.3s ease;
+}
+
+/* QR코드 확장 시 크기 증가 */
+.container.qr-expanded #qrImage {
+    width: 400px;
+    height: 400px;
 }
 
 .qr-info {
@@ -409,10 +454,18 @@ tbody tr:hover {
         min-height: 100vh;
     }
     
+    .container.qr-expanded {
+        flex-direction: column;
+    }
+    
     .data-section {
         order: 2;
         height: auto;
         overflow: visible;
+    }
+    
+    .container.qr-expanded .data-section {
+        flex: none;
     }
     
     .qr-section {
@@ -420,6 +473,22 @@ tbody tr:hover {
         height: auto;
         position: static;
         flex: none;
+        cursor: default;
+    }
+    
+    .container.qr-expanded .qr-section {
+        flex: none;
+    }
+    
+    /* 모바일에서 QR코드 확장 시 크기 조정 */
+    .container.qr-expanded #qrImage {
+        width: 300px;
+        height: 300px;
+    }
+    
+    .container.qr-expanded .qr-container {
+        padding: 25px;
+        min-width: 350px;
     }
     
     .stats {
@@ -431,15 +500,7 @@ tbody tr:hover {
         flex-direction: column;
         gap: 10px;
         align-items: stretch;
-    }
-    
-    .actions::before {
-        text-align: center;
-        margin-bottom: 10px;
-    }
-    
-    .actions > button:first-of-type {
-        margin-left: 0;
+        justify-content: center;
     }
     
     .btn {
@@ -448,11 +509,16 @@ tbody tr:hover {
     }
     
     .table-container {
-        overflow-x: auto;
+        overflow-x: visible;
+    }
+    
+    .table-scroll {
+        overflow: visible;
     }
     
     table {
-        min-width: 500px;
+        min-width: auto;
+        width: 100%;
     }
     
     .qr-container {
