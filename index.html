@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>전화번호 수집 관리자</title>
+    <link rel="stylesheet" href="styles/admin.css">
+</head>
+<body>
+    <div class="container">
+        <!-- 좌측: 데이터 테이블 -->
+        <div class="data-section">
+            <h1>수집된 전화번호 <span id="realTimeIndicator" class="real-time-indicator" title="실시간 동기화 활성화"></span></h1>
+            <div class="stats">
+                <div class="stat-item">
+                    <span class="stat-number" id="totalCount">0</span>
+                    <span class="stat-label">총 수집</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-number" id="todayCount">0</span>
+                    <span class="stat-label">오늘 수집</span>
+                </div>
+            </div>
+            
+            <div class="actions">
+                <button id="exportBtn" class="btn btn-primary" title="클릭: Excel CSV 내보내기 | Shift+클릭: 다른 형식 선택">데이터 내보내기</button>
+                <button id="clearBtn" class="btn btn-danger">데이터 초기화</button>
+                <button id="refreshBtn" class="btn btn-secondary" onclick="refreshAdminData()">데이터 새로고침</button>
+                <button id="debugBtn" class="btn btn-secondary" onclick="showDebugInfo()">디버그 정보</button>
+            </div>
+            
+            <div class="table-container">
+                <table id="dataTable">
+                    <thead>
+                        <tr>
+                            <th>번호</th>
+                            <th>이름</th>
+                            <th>전화번호</th>
+                            <th>수집시간</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dataTableBody">
+                        <!-- 데이터가 여기에 동적으로 추가됩니다 -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- 우측: QR코드 -->
+        <div class="qr-section">
+            <h2>QR코드 스캔</h2>
+            <div class="qr-container">
+                <div id="qrDisplay" style="text-align: center; padding: 20px;">
+                    <!-- QR코드가 여기에 표시됩니다 -->
+                    <img id="qrImage" src="" alt="QR Code" style="max-width: 200px; height: auto; display: block;">
+                    
+                    <!-- 로딩 표시 -->
+                    <div id="qrLoading" style="display: none; padding: 20px;">
+                        <div style="font-size: 18px; color: #3b82f6; margin-bottom: 10px;">🔄</div>
+                        <p style="color: #666;">QR코드 생성 중...</p>
+                    </div>
+                    
+                    <!-- 대체 방법 -->
+                    <div id="qrFallback" style="border: 2px solid #3b82f6; border-radius: 12px; padding: 20px; background: #f8fafc; display: none;">
+                        <div style="margin-bottom: 15px;">
+                            <h3 style="color: #3b82f6; margin-bottom: 10px; font-size: 18px;">📱 모바일 앱 접속</h3>
+                            <p style="color: #666; font-size: 14px;">아래 링크를 클릭하거나 URL을 복사하세요</p>
+                        </div>
+                        
+                        <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #e5e7eb;">
+                            <p style="font-size: 12px; word-break: break-all; color: #1f2937; margin-bottom: 10px;" id="fallbackUrl"></p>
+                            <a href="" id="directLink" target="_blank" style="color: #3b82f6; text-decoration: none; font-weight: 600; font-size: 14px;">
+                                🔗 모바일 앱 열기
+                            </a>
+                        </div>
+                        
+                        <div style="display: flex; gap: 10px; justify-content: center;">
+                            <button onclick="copyUrl()" style="padding: 10px 20px; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">
+                                📋 URL 복사
+                            </button>
+                            <button onclick="generateQR()" style="padding: 10px 20px; background: #10b981; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">
+                                🔄 QR코드 생성
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="qr-info">
+                <p>위 QR코드를 스캔하여</p>
+                <p>이름과 전화번호를 입력하세요</p>
+            </div>
+            <div class="url-display">
+                <label>모바일 앱 URL:</label>
+                <input type="text" id="mobileUrl" readonly>
+                <div style="display: flex; gap: 10px; margin-top: 10px;">
+                    <button id="copyUrlBtn" class="btn btn-secondary">복사</button>
+                    <button id="refreshQrBtn" class="btn btn-secondary">QR코드 새로고침</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Supabase 클라이언트 라이브러리 -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.0/dist/umd/supabase.min.js"></script>
+    <script src="js/supabase-config.js"></script>
+    <script src="js/admin.js"></script>
+    
+    <script>
+        // 전역 변수
+        let mobileUrl = '';
+        
+        // 페이지 로드 시 초기화 - DOMContentLoaded로 더 빨리 시작
+        document.addEventListener('DOMContentLoaded', function() {
+            initApp();
+        });
+        
+        // 백업으로 window.load도 사용
+        window.addEventListener('load', function() {
+            if (!mobileUrl) {
+                initApp();
+            }
+        });
+        
+        // 앱 초기화
+        function initApp() {
+            console.log('🚀 앱 초기화 시작');
+            
+            // URL 설정
+            const protocol = window.location.protocol;
+            const hostname = window.location.hostname;
+            const port = window.location.port;
+            const portString = port ? `:${port}` : '';
+            
+            mobileUrl = `${protocol}//${hostname}${portString}/mobile.html`;
+            console.log('📱 모바일 URL 설정:', mobileUrl);
+            
+            // UI 요소 업데이트
+            updateUI();
+            
+            // QR코드 생성 시도 (약간의 지연 후)
+            setTimeout(() => {
+                generateQR();
+            }, 100);
+        }
+        
+        // UI 업데이트
+        function updateUI() {
+            const urlInput = document.getElementById('mobileUrl');
+            const fallbackUrl = document.getElementById('fallbackUrl');
+            const directLink = document.getElementById('directLink');
+            
+            urlInput.value = mobileUrl;
+            fallbackUrl.textContent = mobileUrl;
+            directLink.href = mobileUrl;
+        }
+        
+        // QR코드 생성
+        function generateQR() {
+            const qrImage = document.getElementById('qrImage');
+            const qrFallback = document.getElementById('qrFallback');
+            const qrLoading = document.getElementById('qrLoading');
+            
+            console.log('QR코드 생성 시도...');
+            console.log('현재 URL:', mobileUrl);
+            console.log('현재 hostname:', window.location.hostname);
+            
+            // 로딩 상태 표시
+            qrImage.style.display = 'none';
+            qrFallback.style.display = 'none';
+            qrLoading.style.display = 'block';
+            
+            // 다중 QR API 시도
+            const qrApis = [
+                `https://chart.googleapis.com/chart?chs=220x220&cht=qr&chl=${encodeURIComponent(mobileUrl)}`,
+                `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(mobileUrl)}`,
+                `https://qr-code-styling.com/qr_code?data=${encodeURIComponent(mobileUrl)}&size=220`
+            ];
+            
+            let currentApiIndex = 0;
+            
+            function tryNextQrApi() {
+                if (currentApiIndex >= qrApis.length) {
+                    // 모든 API 실패
+                    console.log('❌ 모든 QR API 실패');
+                    qrLoading.style.display = 'none';
+                    qrImage.style.display = 'none';
+                    qrFallback.style.display = 'block';
+                    
+                    if (window.location.hostname === 'localhost' || 
+                        window.location.hostname === '127.0.0.1' || 
+                        window.location.protocol === 'file:') {
+                        showLocalInfo();
+                    } else {
+                        showGeneralFallback();
+                    }
+                    return;
+                }
+                
+                const currentUrl = qrApis[currentApiIndex];
+                console.log(`QR API 시도 ${currentApiIndex + 1}/${qrApis.length}:`, currentUrl);
+                
+                // 타임아웃 설정 (2초)
+                const timeout = setTimeout(() => {
+                    console.log(`QR API ${currentApiIndex + 1} 타임아웃`);
+                    currentApiIndex++;
+                    tryNextQrApi();
+                }, 2000);
+                
+                qrImage.onload = function() {
+                    clearTimeout(timeout);
+                    console.log('✅ QR코드 생성 성공!');
+                    qrLoading.style.display = 'none';
+                    qrImage.style.display = 'block';
+                    qrFallback.style.display = 'none';
+                };
+                
+                qrImage.onerror = function() {
+                    clearTimeout(timeout);
+                    console.log(`❌ QR API ${currentApiIndex + 1} 실패`);
+                    currentApiIndex++;
+                    tryNextQrApi();
+                };
+                
+                qrImage.src = currentUrl;
+            }
+            
+            // 첫 번째 API 시도
+            tryNextQrApi();
+        }
+        
+        // 로컬 환경 정보 표시
+        function showLocalInfo() {
+            const qrImage = document.getElementById('qrImage');
+            const qrFallback = document.getElementById('qrFallback');
+            
+            qrImage.style.display = 'none';
+            qrFallback.style.display = 'block';
+            
+            // 로컬 환경용 안내 업데이트
+            const fallbackDiv = document.getElementById('qrFallback');
+            fallbackDiv.innerHTML = `
+                <div style="border: 2px solid #f59e0b; border-radius: 12px; padding: 20px; background: #fffbeb;">
+                    <div style="margin-bottom: 15px;">
+                        <h3 style="color: #f59e0b; margin-bottom: 10px; font-size: 18px;">🏠 로컬 환경에서 실행 중</h3>
+                        <p style="color: #666; font-size: 14px;">QR코드는 웹서버에 배포 후 생성됩니다</p>
+                    </div>
+                    
+                    <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #fbbf24;">
+                        <p style="font-size: 14px; margin-bottom: 10px; font-weight: 600;">테스트 방법:</p>
+                        <p style="font-size: 12px; word-break: break-all; color: #1f2937; margin-bottom: 10px;">${mobileUrl}</p>
+                        <p style="font-size: 12px; color: #666;">
+                            📱 같은 네트워크의 스마트폰에서 위 URL로 접속하세요<br>
+                            (컴퓨터와 스마트폰이 같은 WiFi에 연결되어 있어야 합니다)
+                        </p>
+                    </div>
+                    
+                    <div style="background: #f0f9ff; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #0ea5e9;">
+                        <p style="font-size: 14px; margin-bottom: 8px; font-weight: 600; color: #0369a1;">💡 배포 후 QR코드 생성됩니다:</p>
+                        <p style="font-size: 12px; color: #0369a1;">
+                            • GitHub Pages<br>
+                            • Netlify<br>
+                            • Vercel<br>
+                            • 웹 호스팅 서비스
+                        </p>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; justify-content: center;">
+                        <button onclick="copyUrl()" style="padding: 10px 20px; background: #f59e0b; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">
+                            📋 URL 복사
+                        </button>
+                        <button onclick="showNetworkIP()" style="padding: 10px 20px; background: #0ea5e9; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">
+                            🌐 네트워크 IP 확인
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // 일반적인 대체 방법 표시
+        function showGeneralFallback() {
+            const fallbackDiv = document.getElementById('qrFallback');
+            fallbackDiv.innerHTML = `
+                <div style="border: 2px solid #ef4444; border-radius: 12px; padding: 20px; background: #fef2f2;">
+                    <div style="margin-bottom: 15px;">
+                        <h3 style="color: #ef4444; margin-bottom: 10px; font-size: 18px;">⚠️ QR코드 생성 실패</h3>
+                        <p style="color: #666; font-size: 14px;">네트워크 문제로 QR코드를 생성할 수 없습니다</p>
+                    </div>
+                    
+                    <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #e5e7eb;">
+                        <p style="font-size: 12px; word-break: break-all; color: #1f2937; margin-bottom: 10px;">${mobileUrl}</p>
+                        <a href="${mobileUrl}" target="_blank" style="color: #3b82f6; text-decoration: none; font-weight: 600; font-size: 14px;">
+                            🔗 모바일 앱 열기
+                        </a>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; justify-content: center;">
+                        <button onclick="copyUrl()" style="padding: 10px 20px; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">
+                            📋 URL 복사
+                        </button>
+                        <button onclick="generateQR()" style="padding: 10px 20px; background: #10b981; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">
+                            🔄 다시 시도
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // 네트워크 IP 정보 표시
+        function showNetworkIP() {
+            const networkInfo = `
+현재 localhost로 실행 중입니다.
+
+스마트폰에서 테스트하려면:
+1. 컴퓨터의 IP 주소를 확인하세요
+2. localhost를 해당 IP로 바꿔서 접속하세요
+
+예시:
+- 현재: ${mobileUrl}
+- 변경: http://192.168.1.100:포트번호/mobile.html
+
+IP 확인 방법:
+• Windows: cmd에서 'ipconfig' 실행
+• Mac/Linux: 터미널에서 'ifconfig' 실행
+• 또는 시스템 설정에서 네트워크 정보 확인
+            `;
+            
+            alert(networkInfo);
+        }
+        
+        // URL 복사
+        function copyUrl() {
+            const urlInput = document.getElementById('mobileUrl');
+            
+            // 클립보드 API 사용
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(mobileUrl).then(() => {
+                    showMessage('URL이 복사되었습니다! 📋');
+                }).catch(() => {
+                    fallbackCopy();
+                });
+            } else {
+                fallbackCopy();
+            }
+        }
+        
+        // 대체 복사 방법
+        function fallbackCopy() {
+            const urlInput = document.getElementById('mobileUrl');
+            urlInput.select();
+            urlInput.setSelectionRange(0, 99999);
+            
+            try {
+                document.execCommand('copy');
+                showMessage('URL이 복사되었습니다! 📋');
+            } catch (err) {
+                showMessage('URL을 수동으로 복사해주세요: ' + mobileUrl);
+            }
+        }
+        
+        // 메시지 표시
+        function showMessage(text) {
+            // 기존 메시지 제거
+            const existingMsg = document.getElementById('copyMessage');
+            if (existingMsg) {
+                existingMsg.remove();
+            }
+            
+            // 새 메시지 생성
+            const message = document.createElement('div');
+            message.id = 'copyMessage';
+            message.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: #10b981;
+                color: white;
+                padding: 12px 20px;
+                border-radius: 8px;
+                font-weight: 600;
+                z-index: 1000;
+                animation: slideIn 0.3s ease;
+            `;
+            message.textContent = text;
+            
+            document.body.appendChild(message);
+            
+            // 3초 후 제거
+            setTimeout(() => {
+                if (message.parentNode) {
+                    message.remove();
+                }
+            }, 3000);
+        }
+        
+        // CSS 애니메이션 추가
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes slideIn {
+                from {
+                    transform: translateX(100%);
+                    opacity: 0;
+                }
+                to {
+                    transform: translateX(0);
+                    opacity: 1;
+                }
+            }
+        `;
+        document.head.appendChild(style);
+        
+        // 디버그 정보 표시 함수
+        window.showDebugInfo = async function() {
+            const phoneManager = window.phoneManager;
+            let debugInfo = `=== 디버그 정보 ===\n\n`;
+            
+            if (phoneManager) {
+                debugInfo += `관리자 모드: ${phoneManager.useSupabase ? 'Supabase' : 'localStorage'}\n`;
+                debugInfo += `현재 데이터 수: ${phoneManager.data ? phoneManager.data.length : 0}개\n\n`;
+                
+                if (phoneManager.useSupabase && window.supabaseManager) {
+                    try {
+                        const testResult = await window.supabaseManager.testConnection();
+                        debugInfo += `Supabase 연결: ${testResult.success ? '성공' : '실패'}\n`;
+                        if (!testResult.success) {
+                            debugInfo += `연결 오류: ${testResult.message}\n`;
+                        }
+                        
+                        const stats = await window.supabaseManager.getStats();
+                        debugInfo += `DB 통계: 총 ${stats.total}개, 오늘 ${stats.today}개\n\n`;
+                    } catch (error) {
+                        debugInfo += `Supabase 오류: ${error.message}\n\n`;
+                    }
+                }
+                
+                if (phoneManager.data && phoneManager.data.length > 0) {
+                    debugInfo += `최근 데이터 3개:\n`;
+                    phoneManager.data.slice(0, 3).forEach((item, index) => {
+                        debugInfo += `${index + 1}. ${item.name} - ${item.phone} (${new Date(item.created_at || item.timestamp).toLocaleString('ko-KR')})\n`;
+                    });
+                }
+            } else {
+                debugInfo += `❌ phoneManager가 초기화되지 않았습니다.\n`;
+            }
+            
+            const storedData = JSON.parse(localStorage.getItem('phoneData')) || [];
+            debugInfo += `\nlocalStorage 데이터: ${storedData.length}개\n`;
+            
+            debugInfo += `\n=== 해결 방법 ===\n`;
+            debugInfo += `1. "데이터 새로고침" 버튼 클릭\n`;
+            debugInfo += `2. 페이지 새로고침 (F5)\n`;
+            debugInfo += `3. 콘솔에서 refreshAdminData() 실행\n`;
+            debugInfo += `4. 콘솔에서 testSupabaseDelete() 실행 (삭제 테스트)\n`;
+            
+            alert(debugInfo);
+        };
+        
+        // 전역 새로고침 함수 (백업)
+        if (typeof refreshAdminData === 'undefined') {
+            window.refreshAdminData = function() {
+                console.log('전역 새로고침 함수 호출');
+                location.reload();
+            };
+        }
+        
+        // 로컬 환경에서 기존 Service Worker 정리
+        if ((window.location.hostname.includes('localhost') || window.location.hostname.includes('127.0.0.1')) && 'serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                for(let registration of registrations) {
+                    console.log('🧹 기존 Service Worker 제거:', registration.scope);
+                    registration.unregister();
+                }
+            }).catch(function(error) {
+                console.log('Service Worker 제거 중 오류:', error);
+            });
+        }
+    </script>
+</body>
+</html>
