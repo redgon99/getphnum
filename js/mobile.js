@@ -96,7 +96,13 @@ class MobilePhoneForm {
     // 이름 유효성 검사
     validateName() {
         const name = this.nameInput.value.trim();
-        const isValid = name.length >= 2 && name.length <= 20 && /^[가-힣a-zA-Z\s]+$/.test(name);
+        console.log('이름 유효성 검사:', name, '길이:', name.length);
+        
+        // 더 유연한 이름 검증 (한글, 영문, 숫자, 공백, 일부 특수문자 허용)
+        const isValid = name.length >= 1 && name.length <= 30 && 
+                       /^[가-힣a-zA-Z0-9\s\-_\.]+$/.test(name);
+        
+        console.log('이름 유효성 결과:', isValid);
         
         this.nameInput.classList.toggle('valid', isValid);
         this.nameInput.classList.toggle('invalid', !isValid && name.length > 0);
@@ -107,7 +113,15 @@ class MobilePhoneForm {
     // 전화번호 유효성 검사
     validatePhone() {
         const phone = this.phoneInput.value.replace(/\D/g, '');
-        const isValid = /^01[016789]\d{7,8}$/.test(phone);
+        console.log('전화번호 유효성 검사:', phone, '길이:', phone.length);
+        
+        // 더 유연한 전화번호 검증
+        const isValid = phone.length >= 10 && phone.length <= 11 && 
+                       (phone.startsWith('010') || phone.startsWith('011') || 
+                        phone.startsWith('016') || phone.startsWith('017') || 
+                        phone.startsWith('018') || phone.startsWith('019'));
+        
+        console.log('전화번호 유효성 결과:', isValid);
         
         this.phoneInput.classList.toggle('valid', isValid);
         this.phoneInput.classList.toggle('invalid', !isValid && phone.length > 0);
@@ -118,17 +132,21 @@ class MobilePhoneForm {
     // 전화번호 입력 포맷팅
     formatPhoneInput(input) {
         let value = input.value.replace(/\D/g, '');
+        console.log('전화번호 포맷팅 전:', value);
         
-        if (value.length >= 11) {
+        // 최대 11자리로 제한
+        if (value.length > 11) {
             value = value.slice(0, 11);
         }
         
+        // 포맷팅 적용
         if (value.length >= 7) {
             value = value.replace(/(\d{3})(\d{4})(\d{4})/, '$1-$2-$3');
         } else if (value.length >= 3) {
             value = value.replace(/(\d{3})(\d{0,4})/, '$1-$2');
         }
         
+        console.log('전화번호 포맷팅 후:', value);
         input.value = value;
     }
 
@@ -193,20 +211,31 @@ class MobilePhoneForm {
 
     // 폼 유효성 검사
     validateForm() {
+        console.log('=== 폼 유효성 검사 시작 ===');
+        console.log('이름 입력값:', this.nameInput.value);
+        console.log('전화번호 입력값:', this.phoneInput.value);
+        
         const isNameValid = this.validateName();
         const isPhoneValid = this.validatePhone();
+        
+        console.log('이름 유효성:', isNameValid);
+        console.log('전화번호 유효성:', isPhoneValid);
 
         if (!isNameValid) {
-            this.showError('올바른 이름을 입력해주세요. (2-20자, 한글/영문)');
+            console.log('이름 유효성 검사 실패');
+            this.showError('올바른 이름을 입력해주세요. (1-30자, 한글/영문/숫자)');
             this.nameInput.focus();
             return false;
         }
 
         if (!isPhoneValid) {
-            this.showError('올바른 전화번호를 입력해주세요. (010-1234-5678 형식)');
+            console.log('전화번호 유효성 검사 실패');
+            this.showError('올바른 전화번호를 입력해주세요. (010, 011, 016, 017, 018, 019로 시작)');
             this.phoneInput.focus();
             return false;
         }
+        
+        console.log('=== 폼 유효성 검사 통과 ===');
 
         return true;
     }
@@ -516,3 +545,34 @@ if ('serviceWorker' in navigator && !window.location.hostname.includes('localhos
 } else {
     console.log('🏠 로컬 환경에서는 Service Worker를 사용하지 않습니다');
 }
+
+// 디버깅용 함수들
+window.testForm = function() {
+    console.log('=== 폼 테스트 시작 ===');
+    if (window.phoneForm) {
+        console.log('폼 객체:', window.phoneForm);
+        console.log('이름 입력:', window.phoneForm.nameInput.value);
+        console.log('전화번호 입력:', window.phoneForm.phoneInput.value);
+        console.log('Supabase 모드:', window.phoneForm.useSupabase);
+        
+        // 테스트 데이터로 폼 채우기
+        window.phoneForm.nameInput.value = '테스트';
+        window.phoneForm.phoneInput.value = '010-1234-5678';
+        
+        console.log('테스트 데이터 입력 완료');
+        console.log('이름 유효성:', window.phoneForm.validateName());
+        console.log('전화번호 유효성:', window.phoneForm.validatePhone());
+        console.log('전체 폼 유효성:', window.phoneForm.validateForm());
+    } else {
+        console.error('phoneForm 객체를 찾을 수 없습니다');
+    }
+};
+
+window.testSubmit = function() {
+    console.log('=== 폼 제출 테스트 ===');
+    if (window.phoneForm) {
+        window.phoneForm.handleSubmit();
+    } else {
+        console.error('phoneForm 객체를 찾을 수 없습니다');
+    }
+};
