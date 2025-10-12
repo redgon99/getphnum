@@ -4,12 +4,22 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>전화번호 입력</title>
-    <link rel="stylesheet" href="styles/mobile.css">
+    
+    <!-- 캐시 무효화 -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    
+    <!-- CSS 버전 관리 -->
+    <link rel="stylesheet" href="styles/mobile.css?v=1.1.0">
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#3b82f6">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="전화번호 입력">
+    
+    <!-- 버전 체크 스크립트 -->
+    <script src="js/version.js"></script>
 </head>
 <body>
     <div class="container">
@@ -81,7 +91,7 @@
     
     <!-- Supabase 클라이언트 라이브러리 -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.0/dist/umd/supabase.min.js"></script>
-    <script src="js/supabase-config.js"></script>
-    <script src="js/mobile.js"></script>
+    <script src="js/supabase-config.js?v=1.1.0"></script>
+    <script src="js/mobile.js?v=1.1.0"></script>
 </body>
 </html>

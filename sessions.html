@@ -4,7 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>수집 세션 관리</title>
-    <link rel="stylesheet" href="styles/sessions.css">
+    
+    <!-- 캐시 무효화 -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    
+    <!-- CSS 버전 관리 -->
+    <link rel="stylesheet" href="styles/sessions.css?v=1.1.0">
+    
+    <!-- 버전 체크 스크립트 -->
+    <script src="js/version.js"></script>
 </head>
 <body>
     <div class="container">
@@ -132,8 +142,8 @@
 
     <!-- Supabase 설정 및 스크립트 -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="js/supabase-config.js"></script>
-    <script src="js/sessions.js"></script>
+    <script src="js/supabase-config.js?v=1.1.0"></script>
+    <script src="js/sessions.js?v=1.1.0"></script>
 </body>
 </html>
 

@@ -1,0 +1,32 @@
+name: Auto Update Version on Deploy
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  update-version:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        
+      - name: Update version timestamp
+        run: |
+          # 현재 시간을 버전 쿼리 파라미터로 사용
+          TIMESTAMP=$(date +%s)
+          echo "VERSION_TIMESTAMP=$TIMESTAMP" >> $GITHUB_ENV
+          
+      - name: Update HTML files with new version
+        run: |
+          # 모든 HTML 파일의 버전 파라미터를 현재 타임스탬프로 변경
+          find . -name "*.html" -type f -exec sed -i "s/\?v=[0-9.]*/?v=${{ env.VERSION_TIMESTAMP }}/g" {} \;
+          
+      - name: Commit and push if changed
+        run: |
+          git config --global user.name 'GitHub Actions'
+          git config --global user.email 'actions@github.com'
+          git add -A
+          git diff --quiet && git diff --staged --quiet || (git commit -m "chore: Update version cache busting [skip ci]" && git push)
+
