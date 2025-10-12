@@ -201,6 +201,7 @@ body {
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    width: 100%;
 }
 
 .session-list-header {
@@ -231,9 +232,12 @@ body {
 .session-items {
     flex: 1;
     overflow-y: auto;
+    overflow-x: hidden;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 8px;
+    padding-right: 4px;
+    margin-right: -4px;
 }
 
 .session-loading {
@@ -244,26 +248,52 @@ body {
 }
 
 .session-sidebar .session-item {
-    background: rgba(255, 255, 255, 0.2);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    border-radius: 8px;
-    padding: 10px 12px;
+    background: rgba(255, 255, 255, 0.15);
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 10px;
+    padding: 12px 14px;
     display: flex;
     justify-content: space-between;
     align-items: center;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.3s ease;
+    position: relative;
+    margin-left: 0;
+}
+
+.session-sidebar .session-item::before {
+    content: '';
+    position: absolute;
+    left: -2px;
+    top: -2px;
+    bottom: -2px;
+    width: 4px;
+    background: transparent;
+    border-radius: 10px 0 0 10px;
+    transition: all 0.3s ease;
 }
 
 .session-sidebar .session-item:hover {
-    background: rgba(255, 255, 255, 0.3);
-    transform: translateX(3px);
+    background: rgba(255, 255, 255, 0.25);
+    border-color: rgba(255, 255, 255, 0.5);
+    transform: scale(1.02);
 }
 
 .session-sidebar .session-item.active {
-    background: rgba(255, 255, 255, 0.4);
-    border-color: white;
-    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
+    background: white;
+    border-color: #fbbf24;
+    border-width: 3px;
+    box-shadow: 0 6px 25px rgba(251, 191, 36, 0.5), 
+                inset 0 1px 3px rgba(251, 191, 36, 0.1);
+    transform: scale(1.05);
+    z-index: 10;
+}
+
+.session-sidebar .session-item.active::before {
+    background: linear-gradient(180deg, #fbbf24 0%, #f59e0b 100%);
+    width: 6px;
+    left: -3px;
+    box-shadow: 2px 0 8px rgba(251, 191, 36, 0.5);
 }
 
 .session-item.inactive {
@@ -271,10 +301,17 @@ body {
 }
 
 .session-sidebar .session-item-pin {
-    font-size: 1.1rem;
+    font-size: 1.15rem;
     font-weight: 700;
-    letter-spacing: 0.1em;
+    letter-spacing: 0.15em;
     color: white;
+    transition: all 0.3s ease;
+}
+
+.session-sidebar .session-item.active .session-item-pin {
+    color: #667eea;
+    font-size: 1.3rem;
+    text-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
 }
 
 .session-item-info {
@@ -283,13 +320,24 @@ body {
 }
 
 .session-sidebar .session-item-count {
-    font-size: 0.8rem;
-    color: rgba(255, 255, 255, 0.9);
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.85);
+    transition: all 0.3s ease;
+}
+
+.session-sidebar .session-item.active .session-item-count {
+    color: #1e293b;
+    font-weight: 600;
 }
 
 .session-sidebar .session-item-count strong {
     font-weight: 700;
     color: white;
+}
+
+.session-sidebar .session-item.active .session-item-count strong {
+    color: #667eea;
+    font-size: 1.1rem;
 }
 
 .session-item-actions {
@@ -437,13 +485,25 @@ body {
 }
 
 .session-info-badge {
-    padding: 8px 16px;
-    background: rgba(255, 255, 255, 0.2);
+    padding: 10px 20px;
+    background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
     border-radius: 20px;
-    color: white;
-    font-size: 0.85rem;
-    font-weight: 600;
+    color: #1e293b;
+    font-size: 0.95rem;
+    font-weight: 700;
     white-space: nowrap;
+    box-shadow: 0 4px 15px rgba(251, 191, 36, 0.4);
+    border: 2px solid white;
+    animation: pulse-glow 2s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+    0%, 100% {
+        box-shadow: 0 4px 15px rgba(251, 191, 36, 0.4);
+    }
+    50% {
+        box-shadow: 0 4px 25px rgba(251, 191, 36, 0.6);
+    }
 }
 
 .session-info-badge:empty {
@@ -452,32 +512,63 @@ body {
 
 .stats {
     display: flex;
-    gap: 20px;
+    gap: 15px;
     margin-bottom: 20px;
     flex-shrink: 0;
 }
 
 .stat-item {
     background: white;
-    padding: 20px;
-    border-radius: 12px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-    text-align: center;
+    padding: 12px 20px;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
     flex: 1;
+    border: 2px solid transparent;
+    transition: all 0.3s ease;
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
 
-.stat-number {
-    display: block;
-    font-size: 2.5rem;
-    font-weight: 700;
-    color: #3b82f6;
-    margin-bottom: 5px;
+/* 세션 선택 시 통계 강조 */
+.data-section[data-has-session="true"] .stat-item {
+    border-color: #667eea;
+    background: linear-gradient(135deg, #f0f4ff 0%, #e0e7ff 100%);
+    box-shadow: 0 3px 12px rgba(102, 126, 234, 0.2);
+}
+
+.data-section[data-has-session="true"] .stat-item::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
 }
 
 .stat-label {
     color: #64748b;
-    font-size: 0.9rem;
-    font-weight: 500;
+    font-size: 1rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.data-section[data-has-session="true"] .stat-label {
+    color: #667eea;
+}
+
+.stat-number {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: #3b82f6;
+    transition: all 0.3s ease;
+}
+
+.data-section[data-has-session="true"] .stat-number {
+    color: #667eea;
+    font-size: 2rem;
 }
 
 .table-container {

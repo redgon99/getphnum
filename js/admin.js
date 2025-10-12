@@ -276,6 +276,12 @@ class PhoneDataManager {
                 this.currentSessionId = result.data.id;
                 console.log('🎯 새 세션 자동 선택:', this.currentSessionId, 'PIN:', pin);
                 
+                // data-section에 세션 선택 상태 표시
+                const dataSection = document.querySelector('.data-section');
+                if (dataSection) {
+                    dataSection.setAttribute('data-has-session', 'true');
+                }
+                
                 this.renderSessionSelector();
                 this.updateSessionInfoBadge();
                 await this.loadInitialData();
@@ -379,6 +385,12 @@ class PhoneDataManager {
         console.log('📌 빠른 세션 선택:', sessionId);
         
         this.currentSessionId = sessionId;
+        
+        // data-section에 세션 선택 상태 표시
+        const dataSection = document.querySelector('.data-section');
+        if (dataSection) {
+            dataSection.setAttribute('data-has-session', 'true');
+        }
         
         // UI 업데이트
         this.renderQuickSessionList();
