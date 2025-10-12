@@ -274,14 +274,20 @@ class PhoneDataManager {
                 
                 // 새로 생성된 세션 자동 선택
                 this.currentSessionId = result.data.id;
+                console.log('🎯 새 세션 자동 선택:', this.currentSessionId, 'PIN:', pin);
+                
                 this.renderSessionSelector();
+                this.updateSessionInfoBadge();
                 await this.loadInitialData();
                 await this.updateStats();
                 this.renderTable();
                 
-                // QR 코드 업데이트
+                // QR 코드 업데이트 (중요!)
                 if (typeof window.updateMobileUrl === 'function') {
+                    console.log('🔄 QR 코드 업데이트 호출');
                     window.updateMobileUrl();
+                } else {
+                    console.error('❌ updateMobileUrl 함수 없음!');
                 }
             } else {
                 throw new Error(result.message || '세션 생성 실패');
@@ -465,6 +471,32 @@ class PhoneDataManager {
                 }, 300);
             }
         }, duration);
+    }
+    
+    // 세션 카운트 증가 (실시간 업데이트용)
+    incrementSessionCount(sessionId) {
+        const session = this.sessions.find(s => s.id === sessionId);
+        if (session) {
+            // 메모리의 카운트 증가
+            session.current_entries = (session.current_entries || 0) + 1;
+            
+            // 오늘 날짜 확인
+            const today = new Date().toDateString();
+            const lastEntryDate = session.last_entry_at ? new Date(session.last_entry_at).toDateString() : null;
+            
+            if (lastEntryDate === today) {
+                session.today_entries = (session.today_entries || 0) + 1;
+            } else {
+                session.today_entries = 1;
+            }
+            
+            session.last_entry_at = new Date().toISOString();
+            
+            console.log(`📊 세션 ${sessionId} 카운트 증가:`, session.current_entries);
+            
+            // UI 업데이트
+            this.renderQuickSessionList();
+        }
     }
     
     // 초기 데이터 로드
@@ -1249,16 +1281,49 @@ class PhoneDataManager {
         
         this.subscription = window.supabaseManager.setupRealtimeSubscription((newData) => {
             console.log('🚀 실시간 새 데이터 수신:', newData);
+            console.log('📌 현재 선택된 세션 ID:', this.currentSessionId);
+            console.log('📌 새 데이터의 세션 ID:', newData.session_id);
             
-            // 데이터 배열의 맨 앞에 추가 (최신 데이터가 위에 오도록)
-            this.data.unshift(newData);
-            
-            // UI 업데이트
-            this.updateStats();
-            this.renderTable();
-            
-            // 알림 표시
-            this.showNewDataNotification([newData]);
+            // 세션 필터링: 현재 선택된 세션과 일치하는 데이터만 추가
+            if (this.currentSessionId) {
+                // 특정 세션 선택 중
+                if (newData.session_id === this.currentSessionId) {
+                    console.log('✅ 선택된 세션의 데이터 - 추가함');
+                    this.data.unshift(newData);
+                    
+                    // UI 업데이트
+                    this.updateStats();
+                    this.renderTable();
+                    
+                    // 세션 카운트 증가
+                    this.incrementSessionCount(this.currentSessionId);
+                    
+                    // 알림 표시
+                    this.showNewDataNotification([newData]);
+                } else {
+                    console.log('⏭️ 다른 세션의 데이터 - 무시하지만 카운트는 업데이트');
+                    // 다른 세션의 데이터도 카운트는 업데이트
+                    if (newData.session_id) {
+                        this.incrementSessionCount(newData.session_id);
+                    }
+                }
+            } else {
+                // 전체 데이터 보기 모드
+                console.log('✅ 전체 데이터 모드 - 추가함');
+                this.data.unshift(newData);
+                
+                // UI 업데이트
+                this.updateStats();
+                this.renderTable();
+                
+                // 세션 카운트 증가
+                if (newData.session_id) {
+                    this.incrementSessionCount(newData.session_id);
+                }
+                
+                // 알림 표시
+                this.showNewDataNotification([newData]);
+            }
         });
         
         if (this.subscription) {

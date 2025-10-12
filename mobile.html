@@ -20,25 +20,8 @@
         </div>
         
         <form id="phoneForm" class="form">
-            <div class="form-group" id="pinGroup">
-                <label for="pin">
-                    <span>🔐 PIN 번호 (4자리)</span>
-                    <span class="hint" id="pinHint">수집 세션 PIN을 입력하세요</span>
-                </label>
-                <input 
-                    type="text" 
-                    id="pin" 
-                    name="pin" 
-                    required 
-                    pattern="\d{4}" 
-                    maxlength="4" 
-                    placeholder="0000"
-                    inputmode="numeric"
-                >
-                <div id="pinError" class="pin-error" style="display: none;">
-                    유효하지 않은 PIN입니다
-                </div>
-            </div>
+            <!-- PIN은 URL에서 자동으로 가져옴 (숨김 처리) -->
+            <input type="hidden" id="pin" name="pin">
             
             <div class="form-group">
                 <label for="name">이름</label>

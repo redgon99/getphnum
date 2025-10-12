@@ -92,7 +92,15 @@
         <!-- 우측: QR코드 -->
         <div class="qr-section">
             <h2>QR코드 스캔</h2>
-            <div class="qr-container">
+            
+            <!-- 세션 미선택 상태 -->
+            <div id="qrNoSession" class="qr-no-session" style="display: none;">
+                <div class="empty-qr-icon">📌</div>
+                <h3>세션을 선택하세요</h3>
+                <p>좌측에서 세션을 선택하거나<br>새 PIN을 입력하여 세션을 추가하세요</p>
+            </div>
+            
+            <div class="qr-container" id="qrContainer">
                     <div id="qrDisplay" style="text-align: center; padding: 20px;">
                         <img id="qrImage" src="" alt="QR Code" style="display: block;">
                         
@@ -152,7 +160,20 @@
         // 앱 초기화
         function initApp() {
             console.log('🚀 앱 초기화 시작');
-            updateMobileUrl();
+            
+            // 초기에는 세션이 없으므로 QR 숨김
+            const qrNoSession = document.getElementById('qrNoSession');
+            const qrContainer = document.getElementById('qrContainer');
+            
+            if (qrNoSession) qrNoSession.style.display = 'flex';
+            if (qrContainer) qrContainer.style.display = 'none';
+            
+            console.log('⚠️ 초기 상태: QR 코드 숨김 (세션 미선택)');
+            
+            // phoneManager 준비 후 다시 체크
+            setTimeout(() => {
+                updateMobileUrl();
+            }, 500);
         }
         
         // 페이지 로드 시 초기화 - DOMContentLoaded로 더 빨리 시작
@@ -194,6 +215,23 @@
                         console.log('📌 드롭다운에서 세션 PIN:', pin);
                     }
                 }
+            }
+            
+            // QR 코드 표시/숨김 제어
+            const qrNoSession = document.getElementById('qrNoSession');
+            const qrContainer = document.getElementById('qrContainer');
+            
+            if (!pin) {
+                // 세션이 선택되지 않음 - QR 숨기고 안내 메시지 표시
+                console.log('⚠️ 세션이 선택되지 않음 - QR 숨김');
+                if (qrNoSession) qrNoSession.style.display = 'flex';
+                if (qrContainer) qrContainer.style.display = 'none';
+                return; // QR 생성하지 않음
+            } else {
+                // 세션 선택됨 - QR 표시
+                console.log('✅ 세션 선택됨 - QR 표시');
+                if (qrNoSession) qrNoSession.style.display = 'none';
+                if (qrContainer) qrContainer.style.display = 'block';
             }
             
             // URL 설정 - GitHub Pages 호환

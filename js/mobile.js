@@ -36,18 +36,17 @@ class MobilePhoneForm {
         
         if (this.pinFromUrl) {
             console.log('📌 URL에서 PIN 감지:', this.pinFromUrl);
-            this.pinInput.value = this.pinFromUrl;
             
-            // PIN 그룹 숨기기 및 자동 검증
-            const pinGroup = document.getElementById('pinGroup');
-            pinGroup.style.display = 'none';
+            // 숨겨진 필드에 PIN 값 설정
+            this.pinInput.value = this.pinFromUrl;
             
             // 세션 정보 가져오기
             if (this.useSupabase) {
                 this.validatePin(this.pinFromUrl);
             }
         } else {
-            console.log('⚠️ URL에 PIN 없음, 수동 입력 필요');
+            console.log('⚠️ URL에 PIN 없음 - 전체 수집 모드');
+            // PIN 없이도 계속 진행 가능
         }
     }
     
@@ -93,16 +92,6 @@ class MobilePhoneForm {
         this.phoneInput.addEventListener('input', (e) => {
             this.formatPhoneInput(e.target);
         });
-        
-        // PIN 입력 시 실시간 검증
-        this.pinInput.addEventListener('input', (e) => {
-            const pin = e.target.value;
-            if (pin.length === 4) {
-                this.validatePin(pin);
-            } else {
-                this.clearPinValidation();
-            }
-        });
     }
     
     // PIN 검증 설정
@@ -122,8 +111,6 @@ class MobilePhoneForm {
             return;
         }
         
-        const pinGroup = document.getElementById('pinGroup');
-        const pinError = document.getElementById('pinError');
         const sessionBadge = document.getElementById('sessionBadge');
         const headerDescription = document.getElementById('headerDescription');
         
@@ -138,11 +125,6 @@ class MobilePhoneForm {
                 if (this.currentSession.expires_at && new Date(this.currentSession.expires_at) < new Date()) {
                     throw new Error('만료된 세션입니다');
                 }
-                
-                // UI 업데이트
-                pinGroup.classList.remove('pin-invalid');
-                pinGroup.classList.add('pin-valid');
-                pinError.style.display = 'none';
                 
                 // 세션 배지 표시
                 sessionBadge.textContent = `📋 ${this.currentSession.title}`;
@@ -159,27 +141,17 @@ class MobilePhoneForm {
             console.error('❌ PIN 검증 실패:', error);
             this.currentSession = null;
             
-            // UI 업데이트
-            pinGroup.classList.remove('pin-valid');
-            pinGroup.classList.add('pin-invalid');
-            pinError.textContent = error.message || '유효하지 않은 PIN입니다';
-            pinError.style.display = 'block';
+            // 에러 메시지 표시 (헤더 설명 영역 활용)
+            if (headerDescription) {
+                headerDescription.textContent = `⚠️ ${error.message}`;
+                headerDescription.style.color = '#fee2e2';
+            }
             
             // 세션 배지 숨기기
-            sessionBadge.style.display = 'none';
+            if (sessionBadge) {
+                sessionBadge.style.display = 'none';
+            }
         }
-    }
-    
-    // PIN 검증 초기화
-    clearPinValidation() {
-        const pinGroup = document.getElementById('pinGroup');
-        const pinError = document.getElementById('pinError');
-        const sessionBadge = document.getElementById('sessionBadge');
-        
-        pinGroup.classList.remove('pin-valid', 'pin-invalid');
-        pinError.style.display = 'none';
-        sessionBadge.style.display = 'none';
-        this.currentSession = null;
     }
     
     // 모달 이벤트 리스너 설정
