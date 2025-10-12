@@ -4,22 +4,51 @@ class MobilePhoneForm {
         this.form = document.getElementById('phoneForm');
         this.nameInput = document.getElementById('name');
         this.phoneInput = document.getElementById('phone');
+        this.pinInput = document.getElementById('pin');
         this.submitBtn = document.querySelector('.submit-btn');
         this.successMessage = document.getElementById('successMessage');
         this.errorMessage = document.getElementById('errorMessage');
         this.useSupabase = false;
+        this.currentSession = null; // 현재 세션 정보
+        this.pinFromUrl = null; // URL에서 받은 PIN
         
         this.init();
     }
 
     async init() {
+        // URL에서 PIN 확인
+        this.checkPinFromUrl();
+        
         // Supabase 설정 확인
         await this.checkSupabaseConfig();
         
         this.setupEventListeners();
         this.setupInputValidation();
         this.setupPhoneFormatting();
+        this.setupPinValidation();
         this.checkForReturningUser();
+    }
+    
+    // URL에서 PIN 확인
+    checkPinFromUrl() {
+        const urlParams = new URLSearchParams(window.location.search);
+        this.pinFromUrl = urlParams.get('pin');
+        
+        if (this.pinFromUrl) {
+            console.log('📌 URL에서 PIN 감지:', this.pinFromUrl);
+            this.pinInput.value = this.pinFromUrl;
+            
+            // PIN 그룹 숨기기 및 자동 검증
+            const pinGroup = document.getElementById('pinGroup');
+            pinGroup.style.display = 'none';
+            
+            // 세션 정보 가져오기
+            if (this.useSupabase) {
+                this.validatePin(this.pinFromUrl);
+            }
+        } else {
+            console.log('⚠️ URL에 PIN 없음, 수동 입력 필요');
+        }
     }
     
     // Supabase 설정 확인
@@ -64,6 +93,93 @@ class MobilePhoneForm {
         this.phoneInput.addEventListener('input', (e) => {
             this.formatPhoneInput(e.target);
         });
+        
+        // PIN 입력 시 실시간 검증
+        this.pinInput.addEventListener('input', (e) => {
+            const pin = e.target.value;
+            if (pin.length === 4) {
+                this.validatePin(pin);
+            } else {
+                this.clearPinValidation();
+            }
+        });
+    }
+    
+    // PIN 검증 설정
+    setupPinValidation() {
+        // URL에서 PIN이 있으면 자동 검증
+        if (this.pinFromUrl) {
+            this.validatePin(this.pinFromUrl);
+        }
+    }
+    
+    // PIN 검증
+    async validatePin(pin) {
+        console.log('🔐 PIN 검증 중:', pin);
+        
+        if (!this.useSupabase) {
+            console.log('⚠️ Supabase 비활성화, PIN 검증 생략');
+            return;
+        }
+        
+        const pinGroup = document.getElementById('pinGroup');
+        const pinError = document.getElementById('pinError');
+        const sessionBadge = document.getElementById('sessionBadge');
+        const headerDescription = document.getElementById('headerDescription');
+        
+        try {
+            const result = await window.supabaseManager.getSessionByPin(pin);
+            
+            if (result.success && result.data) {
+                this.currentSession = result.data;
+                console.log('✅ 세션 찾음:', this.currentSession);
+                
+                // 만료 확인
+                if (this.currentSession.expires_at && new Date(this.currentSession.expires_at) < new Date()) {
+                    throw new Error('만료된 세션입니다');
+                }
+                
+                // UI 업데이트
+                pinGroup.classList.remove('pin-invalid');
+                pinGroup.classList.add('pin-valid');
+                pinError.style.display = 'none';
+                
+                // 세션 배지 표시
+                sessionBadge.textContent = `📋 ${this.currentSession.title}`;
+                sessionBadge.style.display = 'inline-block';
+                
+                // 헤더 설명 변경
+                headerDescription.textContent = `${this.currentSession.title}에 참여해주셔서 감사합니다`;
+                
+                console.log('✅ PIN 검증 성공');
+            } else {
+                throw new Error('유효하지 않은 PIN입니다');
+            }
+        } catch (error) {
+            console.error('❌ PIN 검증 실패:', error);
+            this.currentSession = null;
+            
+            // UI 업데이트
+            pinGroup.classList.remove('pin-valid');
+            pinGroup.classList.add('pin-invalid');
+            pinError.textContent = error.message || '유효하지 않은 PIN입니다';
+            pinError.style.display = 'block';
+            
+            // 세션 배지 숨기기
+            sessionBadge.style.display = 'none';
+        }
+    }
+    
+    // PIN 검증 초기화
+    clearPinValidation() {
+        const pinGroup = document.getElementById('pinGroup');
+        const pinError = document.getElementById('pinError');
+        const sessionBadge = document.getElementById('sessionBadge');
+        
+        pinGroup.classList.remove('pin-valid', 'pin-invalid');
+        pinError.style.display = 'none';
+        sessionBadge.style.display = 'none';
+        this.currentSession = null;
     }
     
     // 모달 이벤트 리스너 설정
@@ -360,17 +476,41 @@ class MobilePhoneForm {
         try {
             console.log('데이터 전송 시작:', data);
             
+            // PIN 가져오기
+            const pin = this.pinInput.value || this.pinFromUrl;
+            console.log('사용할 PIN:', pin);
+            
             if (this.useSupabase) {
-                // Supabase에 데이터 저장
-                const result = await window.supabaseManager.insertPhoneNumber(
-                    data.name, 
-                    data.phone,
-                    {
-                        userAgent: navigator.userAgent,
-                        timestamp: new Date().toISOString()
+                // PIN이 있으면 addDataWithPin 사용, 없으면 기존 방식
+                if (pin) {
+                    console.log('📌 PIN을 사용한 데이터 저장');
+                    const result = await window.supabaseManager.addDataWithPin(
+                        data.name,
+                        data.phone,
+                        pin,
+                        {
+                            user_agent: navigator.userAgent
+                        }
+                    );
+                    
+                    if (!result.success) {
+                        throw new Error(result.message || 'PIN 기반 저장 실패');
                     }
-                );
-                console.log('✅ Supabase 저장 완료:', result);
+                    
+                    console.log('✅ PIN 기반 Supabase 저장 완료:', result);
+                } else {
+                    // 기존 방식 (PIN 없이)
+                    console.log('📦 PIN 없이 기본 방식으로 저장');
+                    const result = await window.supabaseManager.insertPhoneNumber(
+                        data.name, 
+                        data.phone,
+                        {
+                            userAgent: navigator.userAgent,
+                            timestamp: new Date().toISOString()
+                        }
+                    );
+                    console.log('✅ Supabase 저장 완료:', result);
+                }
                 
                 // 로컬 백업도 저장
                 this.saveToLocalStorage(data);

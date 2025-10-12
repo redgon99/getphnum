@@ -4,6 +4,9 @@ class PhoneDataManager {
         this.data = [];
         this.subscription = null;
         this.useSupabase = false;
+        this.currentSessionId = null; // 현재 선택된 세션 ID
+        this.sessions = []; // 세션 목록
+        this.existingPins = new Set(); // 중복 체크용
         // init()은 외부에서 명시적으로 호출
     }
 
@@ -13,6 +16,17 @@ class PhoneDataManager {
         // Supabase 설정 확인
         await this.checkSupabaseConfig();
         
+        // URL 파라미터에서 세션 ID 확인
+        const urlParams = new URLSearchParams(window.location.search);
+        const sessionParam = urlParams.get('session');
+        if (sessionParam) {
+            this.currentSessionId = parseInt(sessionParam);
+            console.log('📌 URL에서 세션 ID 감지:', this.currentSessionId);
+        }
+        
+        // 세션 목록 로드
+        await this.loadSessions();
+        
         // 데이터 로드
         await this.loadInitialData();
         
@@ -21,6 +35,10 @@ class PhoneDataManager {
         this.renderTable();
         this.setupEventListeners();
         this.setupRealTimeSync();
+        
+        // 우측 세션 관리 초기화
+        this.setupQuickSessionAdd();
+        this.renderQuickSessionList();
         
         console.log('관리자 페이지 초기화 완료');
     }
@@ -45,15 +63,432 @@ class PhoneDataManager {
         }
     }
     
+    // 세션 목록 로드
+    async loadSessions() {
+        if (!this.useSupabase) {
+            console.log('⚠️ Supabase 비활성화, 세션 기능 사용 불가');
+            return;
+        }
+        
+        try {
+            const result = await window.supabaseManager.getAllSessions();
+            if (result.success) {
+                this.sessions = result.data || [];
+                console.log(`✅ ${this.sessions.length}개 세션 로드됨`);
+                
+                // 기존 PIN 목록 업데이트 (중복 체크용)
+                this.existingPins = new Set(this.sessions.map(s => s.pin));
+                console.log('📌 기존 PIN 목록:', Array.from(this.existingPins));
+                
+                this.renderSessionSelector();
+            }
+        } catch (error) {
+            console.error('❌ 세션 로드 실패:', error);
+        }
+    }
+    
+    // 세션 선택기 렌더링
+    renderSessionSelector() {
+        const select = document.getElementById('sessionSelect');
+        if (!select) return;
+        
+        // 기존 옵션 유지하고 세션 추가
+        select.innerHTML = '<option value="">전체 데이터</option>';
+        
+        this.sessions.forEach(session => {
+            const option = document.createElement('option');
+            option.value = session.id;
+            option.textContent = `[${session.pin}] ${session.title}`;
+            if (!session.is_active) {
+                option.textContent += ' (비활성)';
+                option.disabled = true;
+            }
+            if (this.currentSessionId && session.id === this.currentSessionId) {
+                option.selected = true;
+            }
+            select.appendChild(option);
+        });
+        
+        // 세션 정보 배지 업데이트
+        this.updateSessionInfoBadge();
+        
+        // 이벤트 리스너
+        select.addEventListener('change', async (e) => {
+            this.currentSessionId = e.target.value ? parseInt(e.target.value) : null;
+            console.log('📌 세션 변경:', this.currentSessionId);
+            await this.loadInitialData();
+            await this.updateStats();
+            this.renderTable();
+            this.updateSessionInfoBadge();
+            
+            // QR 코드 업데이트
+            if (typeof window.updateMobileUrl === 'function') {
+                window.updateMobileUrl();
+            }
+        });
+    }
+    
+    // 세션 정보 배지 업데이트
+    updateSessionInfoBadge() {
+        const badge = document.getElementById('sessionInfo');
+        if (!badge) return;
+        
+        if (this.currentSessionId) {
+            const session = this.sessions.find(s => s.id === this.currentSessionId);
+            if (session) {
+                badge.textContent = `PIN: ${session.pin}`;
+                badge.style.display = 'block';
+            }
+        } else {
+            badge.textContent = '';
+            badge.style.display = 'none';
+        }
+    }
+    
+    // ==================== 우측 세션 관리 ====================
+    
+    // 빠른 세션 추가 설정
+    setupQuickSessionAdd() {
+        const quickForm = document.getElementById('quickAddForm');
+        const quickPinInput = document.getElementById('quickPinInput');
+        
+        if (!quickForm || !quickPinInput) {
+            console.log('⚠️ 빠른 세션 추가 요소 없음');
+            return;
+        }
+        
+        // 폼 제출
+        quickForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await this.quickAddSession();
+        });
+        
+        // PIN 입력 검증
+        quickPinInput.addEventListener('input', (e) => {
+            this.validateQuickPin(e.target.value);
+        });
+    }
+    
+    // PIN 입력 검증
+    validateQuickPin(pin) {
+        const input = document.getElementById('quickPinInput');
+        const validation = document.getElementById('quickPinValidation');
+        
+        if (!input || !validation) {
+            console.log('⚠️ PIN 검증 요소 없음');
+            return;
+        }
+        
+        console.log('🔍 PIN 검증:', pin, '기존 PIN 목록:', Array.from(this.existingPins));
+        
+        // 4자리가 아니면 초기화
+        if (pin.length < 4) {
+            input.classList.remove('valid', 'invalid');
+            validation.style.display = 'none';
+            return;
+        }
+        
+        // 4자리 숫자 검증
+        if (!/^\d{4}$/.test(pin)) {
+            input.classList.remove('valid');
+            input.classList.add('invalid');
+            validation.textContent = '❌ 4자리 숫자만 입력';
+            validation.className = 'quick-validation error';
+            console.log('❌ 숫자 형식 오류:', pin);
+            return;
+        }
+        
+        // 중복 검증
+        if (this.existingPins.has(pin)) {
+            input.classList.remove('valid');
+            input.classList.add('invalid');
+            validation.textContent = `⚠️ PIN ${pin}은 이미 사용 중입니다`;
+            validation.className = 'quick-validation error';
+            validation.style.display = 'block';
+            console.log(`❌ PIN ${pin} 중복 감지! 기존 PIN:`, Array.from(this.existingPins));
+            return;
+        }
+        
+        // 유효한 PIN
+        input.classList.remove('invalid');
+        input.classList.add('valid');
+        validation.textContent = `✅ 사용 가능`;
+        validation.className = 'quick-validation success';
+        validation.style.display = 'block';
+        console.log(`✅ PIN ${pin} 사용 가능`);
+    }
+    
+    // 빠른 세션 추가
+    async quickAddSession() {
+        const input = document.getElementById('quickPinInput');
+        const pin = input.value.trim();
+        
+        console.log('📝 빠른 세션 추가:', pin);
+        
+        // 유효성 검증
+        if (!/^\d{4}$/.test(pin)) {
+            this.showQuickNotification('❌ 4자리 숫자만 입력 가능합니다', 'error');
+            return;
+        }
+        
+        if (this.existingPins.has(pin)) {
+            this.showQuickNotification(`⚠️ PIN ${pin}은 이미 사용 중입니다. 다른 번호를 사용하세요.`, 'error');
+            
+            // 입력창 시각적 피드백
+            const input = document.getElementById('quickPinInput');
+            input.classList.add('invalid');
+            input.select(); // 텍스트 전체 선택으로 재입력 용이
+            
+            return;
+        }
+        
+        try {
+            // 기본 제목으로 세션 생성
+            const title = `세션 ${pin}`;
+            const result = await window.supabaseManager.createSession({
+                pin: pin,
+                title: title,
+                description: null,
+                expires_at: null
+            });
+            
+            if (result.success) {
+                this.showQuickNotification(`✅ 세션 ${pin} 생성 완료!`, 'success');
+                
+                // PIN을 기존 목록에 추가 (즉시 중복 체크에 반영)
+                this.existingPins.add(pin);
+                console.log('✅ PIN 추가됨:', pin, '현재 목록:', Array.from(this.existingPins));
+                
+                // 입력창 초기화
+                input.value = '';
+                input.classList.remove('valid', 'invalid');
+                const validation = document.getElementById('quickPinValidation');
+                if (validation) {
+                    validation.style.display = 'none';
+                    validation.className = 'quick-validation';
+                }
+                
+                // 세션 목록 새로고침
+                await this.loadSessions();
+                this.renderQuickSessionList();
+                
+                // 새로 생성된 세션 자동 선택
+                this.currentSessionId = result.data.id;
+                this.renderSessionSelector();
+                await this.loadInitialData();
+                await this.updateStats();
+                this.renderTable();
+                
+                // QR 코드 업데이트
+                if (typeof window.updateMobileUrl === 'function') {
+                    window.updateMobileUrl();
+                }
+            } else {
+                throw new Error(result.message || '세션 생성 실패');
+            }
+        } catch (error) {
+            console.error('❌ 세션 생성 오류:', error);
+            let errorMsg = '❌ 세션 생성에 실패했습니다';
+            
+            if (error.message.includes('duplicate') || error.message.includes('unique') || error.message.includes('violates unique constraint')) {
+                errorMsg = `⚠️ PIN ${pin}은 이미 사용 중입니다. 다른 번호를 입력하세요.`;
+                input.classList.add('invalid');
+                input.select();
+            } else if (error.message) {
+                errorMsg = `❌ ${error.message}`;
+            }
+            
+            this.showQuickNotification(errorMsg, 'error');
+        }
+    }
+    
+    // 우측 세션 목록 렌더링
+    renderQuickSessionList() {
+        const container = document.getElementById('sessionListContainer');
+        const countSpan = document.getElementById('sessionCount');
+        
+        if (!container) {
+            console.log('⚠️ 세션 목록 컨테이너 없음');
+            return;
+        }
+        
+        // 카운트 업데이트
+        if (countSpan) {
+            countSpan.textContent = this.sessions.length;
+        }
+        
+        if (this.sessions.length === 0) {
+            container.innerHTML = '<div class="session-loading">세션이 없습니다</div>';
+            return;
+        }
+        
+        // 활성 세션 먼저, PIN 순으로 정렬
+        const sortedSessions = [...this.sessions].sort((a, b) => {
+            if (a.is_active !== b.is_active) return a.is_active ? -1 : 1;
+            return a.pin.localeCompare(b.pin);
+        });
+        
+        container.innerHTML = sortedSessions.map(session => `
+            <div class="session-item ${session.is_active ? '' : 'inactive'} ${this.currentSessionId === session.id ? 'active' : ''}" 
+                 data-session-id="${session.id}">
+                <div class="session-item-pin">${session.pin}</div>
+                <div class="session-item-info">
+                    <div class="session-item-count">
+                        <strong>${session.current_entries || 0}</strong>건
+                    </div>
+                </div>
+                <div class="session-item-actions">
+                    <button class="session-item-btn delete" title="삭제" data-action="delete" data-session-id="${session.id}">
+                        🗑️
+                    </button>
+                </div>
+            </div>
+        `).join('');
+        
+        // 이벤트 리스너 등록
+        container.querySelectorAll('.session-item').forEach(item => {
+            const sessionId = parseInt(item.dataset.sessionId);
+            
+            // 클릭 시 선택
+            item.addEventListener('click', (e) => {
+                // 버튼 클릭은 무시
+                if (e.target.closest('.session-item-btn')) return;
+                
+                this.selectQuickSession(sessionId);
+            });
+        });
+        
+        // 삭제 버튼
+        container.querySelectorAll('.session-item-btn.delete').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const sessionId = parseInt(btn.dataset.sessionId);
+                await this.deleteQuickSession(sessionId);
+            });
+        });
+    }
+    
+    // 빠른 세션 선택
+    async selectQuickSession(sessionId) {
+        console.log('📌 빠른 세션 선택:', sessionId);
+        
+        this.currentSessionId = sessionId;
+        
+        // UI 업데이트
+        this.renderQuickSessionList();
+        this.renderSessionSelector();
+        await this.loadInitialData();
+        await this.updateStats();
+        this.renderTable();
+        this.updateSessionInfoBadge();
+        
+        // QR 코드 업데이트
+        if (typeof window.updateMobileUrl === 'function') {
+            window.updateMobileUrl();
+        }
+    }
+    
+    // 빠른 세션 삭제
+    async deleteQuickSession(sessionId) {
+        const session = this.sessions.find(s => s.id === sessionId);
+        if (!session) return;
+        
+        const entryCount = session.current_entries || 0;
+        let confirmMsg = `세션 ${session.pin} 삭제?`;
+        if (entryCount > 0) {
+            confirmMsg += `\n⚠️ ${entryCount}개 데이터도 삭제됩니다!`;
+        }
+        
+        if (!confirm(confirmMsg)) return;
+        
+        try {
+            const result = await window.supabaseManager.deleteSession(sessionId);
+            
+            if (result.success) {
+                this.showQuickNotification('✅ 세션 삭제됨', 'success');
+                
+                // PIN을 기존 목록에서 제거 (즉시 중복 체크에 반영)
+                this.existingPins.delete(session.pin);
+                console.log('🗑️ PIN 제거됨:', session.pin, '현재 목록:', Array.from(this.existingPins));
+                
+                // 현재 선택된 세션이면 해제
+                if (this.currentSessionId === sessionId) {
+                    this.currentSessionId = null;
+                }
+                
+                // 새로고침
+                await this.loadSessions();
+                this.renderQuickSessionList();
+                this.renderSessionSelector();
+                await this.loadInitialData();
+                await this.updateStats();
+                this.renderTable();
+                
+                // QR 코드 업데이트
+                if (typeof window.updateMobileUrl === 'function') {
+                    window.updateMobileUrl();
+                }
+            } else {
+                throw new Error(result.message || '삭제 실패');
+            }
+        } catch (error) {
+            console.error('❌ 세션 삭제 오류:', error);
+            this.showQuickNotification('삭제 실패', 'error');
+        }
+    }
+    
+    // 빠른 알림
+    showQuickNotification(message, type = 'info') {
+        const validation = document.getElementById('quickPinValidation');
+        if (!validation) {
+            console.log('⚠️ 알림 요소 없음');
+            return;
+        }
+        
+        console.log('📢 알림 표시:', message, '타입:', type);
+        
+        validation.textContent = message;
+        validation.className = `quick-validation ${type}`;
+        validation.style.display = 'block';
+        validation.style.visibility = 'visible';
+        validation.style.opacity = '1';
+        
+        // 에러 메시지는 더 오래 표시
+        const duration = type === 'error' ? 5000 : 3000;
+        
+        setTimeout(() => {
+            if (validation.className.includes(type)) {
+                validation.style.opacity = '0';
+                setTimeout(() => {
+                    validation.style.display = 'none';
+                    validation.className = 'quick-validation';
+                }, 300);
+            }
+        }, duration);
+    }
+    
     // 초기 데이터 로드
     async loadInitialData() {
-        console.log('📥 데이터 로드 시작, useSupabase:', this.useSupabase);
+        console.log('📥 데이터 로드 시작, useSupabase:', this.useSupabase, 'sessionId:', this.currentSessionId);
         
         if (this.useSupabase) {
             try {
                 console.log('🔄 Supabase에서 데이터 조회 중...');
-                this.data = await window.supabaseManager.getPhoneNumbers();
-                console.log('📊 Supabase에서 데이터 로드 성공:', this.data.length, '개');
+                
+                // 세션 필터링
+                if (this.currentSessionId) {
+                    const result = await window.supabaseManager.getDataBySession(this.currentSessionId);
+                    if (result.success) {
+                        this.data = result.data || [];
+                        console.log(`📊 세션 ${this.currentSessionId}의 데이터 로드 성공:`, this.data.length, '개');
+                    } else {
+                        throw new Error(result.message);
+                    }
+                } else {
+                    this.data = await window.supabaseManager.getPhoneNumbers();
+                    console.log('📊 전체 데이터 로드 성공:', this.data.length, '개');
+                }
+                
                 console.log('📋 로드된 데이터:', this.data);
             } catch (error) {
                 console.error('❌ Supabase 데이터 로드 실패, localStorage로 전환:', error);

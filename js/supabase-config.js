@@ -499,6 +499,202 @@ CREATE POLICY "Allow public insert access" ON phone_numbers FOR INSERT WITH CHEC
             return false;
         }
     }
+    
+    // ==================== 세션 관리 함수 ====================
+    
+    // 세션 생성
+    async createSession(sessionData) {
+        try {
+            const { data, error } = await this.supabase
+                .from('collection_sessions')
+                .insert([{
+                    pin: sessionData.pin,
+                    title: sessionData.title,
+                    description: sessionData.description,
+                    expires_at: sessionData.expires_at
+                }])
+                .select()
+                .single();
+
+            if (error) throw error;
+
+            console.log('✅ 세션 생성 완료:', data);
+            return { success: true, data };
+        } catch (error) {
+            console.error('❌ 세션 생성 오류:', error);
+            return { success: false, message: error.message };
+        }
+    }
+    
+    // 모든 세션 조회 (통계 포함)
+    async getAllSessions() {
+        try {
+            const { data, error } = await this.supabase
+                .from('session_statistics')
+                .select('*')
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+
+            console.log(`✅ ${data.length}개 세션 조회 완료`);
+            return { success: true, data };
+        } catch (error) {
+            console.error('❌ 세션 조회 오류:', error);
+            return { success: false, message: error.message };
+        }
+    }
+    
+    // PIN으로 세션 조회
+    async getSessionByPin(pin) {
+        try {
+            const { data, error } = await this.supabase
+                .from('collection_sessions')
+                .select('*')
+                .eq('pin', pin)
+                .eq('is_active', true)
+                .single();
+
+            if (error) throw error;
+
+            console.log('✅ 세션 조회 완료:', data);
+            return { success: true, data };
+        } catch (error) {
+            console.error('❌ 세션 조회 오류:', error);
+            return { success: false, message: error.message };
+        }
+    }
+    
+    // 세션 ID로 세션 조회
+    async getSessionById(sessionId) {
+        try {
+            const { data, error } = await this.supabase
+                .from('session_statistics')
+                .select('*')
+                .eq('id', sessionId)
+                .single();
+
+            if (error) throw error;
+
+            console.log('✅ 세션 조회 완료:', data);
+            return { success: true, data };
+        } catch (error) {
+            console.error('❌ 세션 조회 오류:', error);
+            return { success: false, message: error.message };
+        }
+    }
+    
+    // 세션 상태 업데이트
+    async updateSessionStatus(sessionId, isActive) {
+        try {
+            const { data, error } = await this.supabase
+                .from('collection_sessions')
+                .update({ is_active: isActive })
+                .eq('id', sessionId)
+                .select()
+                .single();
+
+            if (error) throw error;
+
+            console.log('✅ 세션 상태 업데이트 완료:', data);
+            return { success: true, data };
+        } catch (error) {
+            console.error('❌ 세션 상태 업데이트 오류:', error);
+            return { success: false, message: error.message };
+        }
+    }
+    
+    // 세션 삭제
+    async deleteSession(sessionId) {
+        try {
+            const { error } = await this.supabase
+                .from('collection_sessions')
+                .delete()
+                .eq('id', sessionId);
+
+            if (error) throw error;
+
+            console.log('✅ 세션 삭제 완료');
+            return { success: true };
+        } catch (error) {
+            console.error('❌ 세션 삭제 오류:', error);
+            return { success: false, message: error.message };
+        }
+    }
+    
+    // 세션별 데이터 조회
+    async getDataBySession(sessionId) {
+        try {
+            const { data, error } = await this.supabase
+                .from(this.tableName)
+                .select('*')
+                .eq('session_id', sessionId)
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+
+            console.log(`✅ 세션 ${sessionId}의 ${data.length}개 데이터 조회 완료`);
+            return { success: true, data };
+        } catch (error) {
+            console.error('❌ 세션 데이터 조회 오류:', error);
+            return { success: false, message: error.message };
+        }
+    }
+    
+    // PIN을 포함한 데이터 추가
+    async addDataWithPin(name, phone, pin, metadata = {}) {
+        try {
+            // PIN으로 세션 조회
+            const sessionResult = await this.getSessionByPin(pin);
+            if (!sessionResult.success || !sessionResult.data) {
+                throw new Error('유효하지 않은 PIN 번호입니다');
+            }
+
+            const session = sessionResult.data;
+            
+            // 만료 확인
+            if (session.expires_at && new Date(session.expires_at) < new Date()) {
+                throw new Error('만료된 세션입니다');
+            }
+
+            // 데이터 추가
+            const { data, error } = await this.supabase
+                .from(this.tableName)
+                .insert([{
+                    name: name,
+                    phone: phone,
+                    session_id: session.id,
+                    ip_address: metadata.ip_address,
+                    user_agent: metadata.user_agent
+                }])
+                .select();
+
+            if (error) throw error;
+
+            console.log('✅ 데이터 추가 완료 (세션 포함):', data);
+            return { success: true, data: data[0] };
+        } catch (error) {
+            console.error('❌ 데이터 추가 오류:', error);
+            return { success: false, message: error.message };
+        }
+    }
+    
+    // 세션별 데이터 삭제
+    async clearSessionData(sessionId) {
+        try {
+            const { error } = await this.supabase
+                .from(this.tableName)
+                .delete()
+                .eq('session_id', sessionId);
+
+            if (error) throw error;
+
+            console.log(`✅ 세션 ${sessionId}의 데이터 삭제 완료`);
+            return { success: true };
+        } catch (error) {
+            console.error('❌ 세션 데이터 삭제 오류:', error);
+            return { success: false, message: error.message };
+        }
+    }
 }
 
 // 전역 Supabase 매니저 인스턴스

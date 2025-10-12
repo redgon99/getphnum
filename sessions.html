@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>수집 세션 관리</title>
+    <link rel="stylesheet" href="styles/sessions.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>📊 전화번호 수집 세션 관리</h1>
+            <p class="subtitle">PIN 번호로 여러 수집 이벤트를 관리하세요</p>
+        </header>
+
+        <div class="main-content">
+            <!-- 좌측: 세션 트리 메뉴 -->
+            <aside class="sidebar">
+                <div class="pin-quick-add">
+                    <h3>🔢 새 세션 추가</h3>
+                    <form id="quickAddForm" class="quick-add-form">
+                        <div class="pin-input-wrapper">
+                            <input 
+                                type="text" 
+                                id="quickPinInput" 
+                                name="pin" 
+                                pattern="\d{4}"
+                                maxlength="4"
+                                placeholder="PIN 4자리 입력"
+                                inputmode="numeric"
+                                autocomplete="off"
+                            >
+                            <button type="submit" class="btn-add" title="추가">
+                                ➕
+                            </button>
+                        </div>
+                        <div id="pinValidation" class="validation-message"></div>
+                    </form>
+                </div>
+
+                <div class="session-tree">
+                    <div class="tree-header">
+                        <h3>📋 세션 목록</h3>
+                        <button id="collapseAllBtn" class="btn-icon" title="전체 접기/펼치기">
+                            ⚡
+                        </button>
+                    </div>
+                    <div id="sessionTreeContainer" class="tree-container">
+                        <div class="loading-tree">세션을 불러오는 중...</div>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- 우측: 세션 상세 정보 -->
+            <section class="detail-section">
+                <div id="emptyState" class="empty-state-detail">
+                    <div class="empty-icon">📭</div>
+                    <h2>세션을 선택하세요</h2>
+                    <p>좌측 메뉴에서 세션을 선택하거나<br>새 PIN을 입력하여 세션을 추가하세요</p>
+                </div>
+
+                <div id="sessionDetail" class="session-detail" style="display: none;">
+                    <div class="detail-header">
+                        <div class="detail-title">
+                            <h2 id="detailTitle">세션 상세</h2>
+                            <span id="detailPin" class="pin-badge"></span>
+                        </div>
+                        <div class="detail-actions">
+                            <button id="toggleStatusBtn" class="btn btn-secondary">
+                                🔄 상태 변경
+                            </button>
+                            <button id="deleteSessionBtn" class="btn btn-danger">
+                                🗑️ 삭제
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="detail-stats">
+                        <div class="stat-card">
+                            <div class="stat-icon">📊</div>
+                            <div class="stat-content">
+                                <div class="stat-value" id="detailTotalEntries">0</div>
+                                <div class="stat-label">총 수집 건수</div>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">📅</div>
+                            <div class="stat-content">
+                                <div class="stat-value" id="detailTodayEntries">0</div>
+                                <div class="stat-label">오늘 수집</div>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">🔗</div>
+                            <div class="stat-content">
+                                <div class="stat-value" id="detailStatus">-</div>
+                                <div class="stat-label">상태</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="detail-info">
+                        <div class="info-group">
+                            <label>📱 모바일 URL</label>
+                            <div class="url-copy-group">
+                                <input type="text" id="detailMobileUrl" class="url-input" readonly>
+                                <button id="copyUrlBtn" class="btn-copy">📋 복사</button>
+                            </div>
+                        </div>
+
+                        <div class="info-group">
+                            <label>📅 생성일</label>
+                            <div id="detailCreatedAt" class="info-value">-</div>
+                        </div>
+
+                        <div class="info-group">
+                            <label>⏰ 최근 수집</label>
+                            <div id="detailLastEntry" class="info-value">-</div>
+                        </div>
+                    </div>
+
+                    <div class="detail-footer">
+                        <button id="viewDataBtn" class="btn btn-primary btn-large">
+                            📊 데이터 보기
+                        </button>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+
+
+    <!-- Supabase 설정 및 스크립트 -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/supabase-config.js"></script>
+    <script src="js/sessions.js"></script>
+</body>
+</html>
+

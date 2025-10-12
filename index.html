@@ -8,9 +8,51 @@
 </head>
 <body>
     <div class="container">
-        <!-- 좌측: 데이터 테이블 -->
+        <!-- 좌측: 세션 관리 사이드바 -->
+        <aside class="session-sidebar">
+            <!-- 세션 빠른 추가 -->
+            <div class="session-quick-add">
+                <h3>🔢 새 세션 추가</h3>
+                <form id="quickAddForm" class="quick-form">
+                    <input 
+                        type="text" 
+                        id="quickPinInput" 
+                        name="pin" 
+                        pattern="\d{4}"
+                        maxlength="4"
+                        placeholder="PIN 4자리"
+                        inputmode="numeric"
+                        autocomplete="off"
+                    >
+                    <button type="submit" class="btn-quick-add">➕</button>
+                </form>
+                <div id="quickPinValidation" class="quick-validation"></div>
+            </div>
+
+            <!-- 세션 목록 -->
+            <div class="session-list-compact">
+                <div class="session-list-header">
+                    <h3>📋 세션 목록</h3>
+                    <span id="sessionCount" class="session-count">0</span>
+                </div>
+                <div id="sessionListContainer" class="session-items">
+                    <div class="session-loading">세션 로딩중...</div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- 중앙: 데이터 테이블 -->
         <div class="data-section">
-            <h1>수집된 전화번호 <span id="realTimeIndicator" class="real-time-indicator" title="실시간 동기화 활성화"></span></h1>
+            <!-- 데이터 테이블 헤더 -->
+            <div class="header-row">
+                <h1>수집된 전화번호 <span id="realTimeIndicator" class="real-time-indicator" title="실시간 동기화 활성화"></span></h1>
+            </div>
+            
+            <!-- 선택된 세션 정보 -->
+            <div class="session-info-display">
+                <div id="sessionInfo" class="session-info-badge"></div>
+            </div>
+            
             <div class="stats">
                 <div class="stat-item">
                     <span class="stat-number" id="totalCount">0</span>
@@ -51,41 +93,38 @@
         <div class="qr-section">
             <h2>QR코드 스캔</h2>
             <div class="qr-container">
-                <div id="qrDisplay" style="text-align: center; padding: 20px;">
-                    <!-- QR코드가 여기에 표시됩니다 -->
-                    <img id="qrImage" src="" alt="QR Code" style="display: block;">
-                    
-                    <!-- 로딩 표시 -->
-                    <div id="qrLoading" style="display: none; padding: 20px;">
-                        <div style="font-size: 18px; color: #3b82f6; margin-bottom: 10px;">🔄</div>
-                        <p style="color: #666;">QR코드 생성 중...</p>
-                    </div>
-                    
-                    <!-- 대체 방법 -->
-                    <div id="qrFallback" style="border: 2px solid #3b82f6; border-radius: 12px; padding: 20px; background: #f8fafc; display: none;">
-                        <div style="margin-bottom: 15px;">
-                            <h3 style="color: #3b82f6; margin-bottom: 10px; font-size: 18px;">📱 모바일 앱 접속</h3>
-                            <p style="color: #666; font-size: 14px;">아래 링크를 클릭하거나 URL을 복사하세요</p>
+                    <div id="qrDisplay" style="text-align: center; padding: 20px;">
+                        <img id="qrImage" src="" alt="QR Code" style="display: block;">
+                        
+                        <div id="qrLoading" style="display: none; padding: 20px;">
+                            <div style="font-size: 18px; color: #3b82f6; margin-bottom: 10px;">🔄</div>
+                            <p style="color: #666;">QR코드 생성 중...</p>
                         </div>
                         
-                        <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #e5e7eb;">
-                            <p style="font-size: 12px; word-break: break-all; color: #1f2937; margin-bottom: 10px;" id="fallbackUrl"></p>
-                            <a href="" id="directLink" target="_blank" style="color: #3b82f6; text-decoration: none; font-weight: 600; font-size: 14px;">
-                                🔗 모바일 앱 열기
-                            </a>
-                        </div>
-                        
-                        <div style="display: flex; gap: 10px; justify-content: center;">
-                            <button onclick="copyUrl()" style="padding: 10px 20px; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">
-                                📋 URL 복사
-                            </button>
-                            <button onclick="generateQR()" style="padding: 10px 20px; background: #10b981; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">
-                                🔄 QR코드 생성
-                            </button>
+                        <div id="qrFallback" style="border: 2px solid #3b82f6; border-radius: 12px; padding: 20px; background: #f8fafc; display: none;">
+                            <div style="margin-bottom: 15px;">
+                                <h3 style="color: #3b82f6; margin-bottom: 10px; font-size: 18px;">📱 모바일 앱 접속</h3>
+                                <p style="color: #666; font-size: 14px;">아래 링크를 클릭하거나 URL을 복사하세요</p>
+                            </div>
+                            
+                            <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #e5e7eb;">
+                                <p style="font-size: 12px; word-break: break-all; color: #1f2937; margin-bottom: 10px;" id="fallbackUrl"></p>
+                                <a href="" id="directLink" target="_blank" style="color: #3b82f6; text-decoration: none; font-weight: 600; font-size: 14px;">
+                                    🔗 모바일 앱 열기
+                                </a>
+                            </div>
+                            
+                            <div style="display: flex; gap: 10px; justify-content: center;">
+                                <button onclick="copyUrl()" style="padding: 10px 20px; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">
+                                    📋 URL 복사
+                                </button>
+                                <button onclick="generateQR()" style="padding: 10px 20px; background: #10b981; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">
+                                    🔄 QR코드 생성
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
             <div class="qr-info">
                 <p>위 QR코드를 스캔하여</p>
                 <p>이름과 전화번호를 입력하세요</p>
@@ -110,6 +149,12 @@
         // 전역 변수
         let mobileUrl = '';
         
+        // 앱 초기화
+        function initApp() {
+            console.log('🚀 앱 초기화 시작');
+            updateMobileUrl();
+        }
+        
         // 페이지 로드 시 초기화 - DOMContentLoaded로 더 빨리 시작
         document.addEventListener('DOMContentLoaded', function() {
             initApp();
@@ -122,9 +167,34 @@
             }
         });
         
-        // 앱 초기화
-        function initApp() {
-            console.log('🚀 앱 초기화 시작');
+        // 모바일 URL 생성 (세션 선택 시 호출)
+        function updateMobileUrl() {
+            console.log('📱 모바일 URL 업데이트');
+            
+            let pin = '';
+            
+            // phoneManager의 currentSessionId 우선 확인
+            if (window.phoneManager && window.phoneManager.currentSessionId && window.phoneManager.sessions) {
+                const session = window.phoneManager.sessions.find(s => s.id === window.phoneManager.currentSessionId);
+                if (session) {
+                    pin = session.pin;
+                    console.log('📌 현재 선택된 세션 PIN:', pin);
+                }
+            }
+            
+            // 드롭다운에서도 확인 (백업)
+            if (!pin) {
+                const sessionSelect = document.getElementById('sessionSelect');
+                const selectedSessionId = sessionSelect ? sessionSelect.value : null;
+                
+                if (selectedSessionId && window.phoneManager && window.phoneManager.sessions) {
+                    const session = window.phoneManager.sessions.find(s => s.id === parseInt(selectedSessionId));
+                    if (session) {
+                        pin = session.pin;
+                        console.log('📌 드롭다운에서 세션 PIN:', pin);
+                    }
+                }
+            }
             
             // URL 설정 - GitHub Pages 호환
             const protocol = window.location.protocol;
@@ -153,10 +223,17 @@
                 basePath = '/';
             }
             
-            mobileUrl = `${protocol}//${hostname}${portString}${basePath}mobile.html`;
+            // PIN이 있으면 URL에 추가
+            if (pin) {
+                mobileUrl = `${protocol}//${hostname}${portString}${basePath}mobile.html?pin=${pin}`;
+            } else {
+                mobileUrl = `${protocol}//${hostname}${portString}${basePath}mobile.html`;
+            }
+            
             console.log('📱 모바일 URL 설정:', mobileUrl);
             console.log('현재 경로:', currentPath);
             console.log('기본 경로:', basePath);
+            console.log('PIN:', pin || '없음');
             
             // UI 요소 업데이트
             updateUI();
@@ -166,6 +243,9 @@
                 generateQR();
             }, 100);
         }
+        
+        // 전역 함수로 노출 (세션 변경 시 호출용)
+        window.updateMobileUrl = updateMobileUrl;
         
         // UI 업데이트
         function updateUI() {
